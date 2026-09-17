@@ -1,0 +1,6 @@
+{
+  "name": "Diagnostic Technique Bâtiment",
+  "description": "Application d'analyse unitaire de photos de visite technique par l'IA (expert ingénieur PPPT Climat & Résilience) avec classification selon la grille de hiérarchisation officielle.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
