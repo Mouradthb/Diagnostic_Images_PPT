@@ -26,34 +26,30 @@ export async function prepareImageForAnalysis(
     return await new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+        // Plusieurs tailles/qualités permettent de rester sous la limite de requête Vercel.
+        let lastDataUrl = dataUrl;
+        for (const size of [maxDimension, 1200, 900]) {
+          const scale = Math.min(1, size / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve({ base64Data: dataUrl, mimeType: file.type || 'image/jpeg' });
+            return;
+          }
 
-        // Si l'image est plus grande que la dimension cible, redimensionner proportionnellement
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          for (const candidateQuality of [quality, 0.7, 0.55]) {
+            lastDataUrl = canvas.toDataURL('image/jpeg', candidateQuality);
+            if (lastDataUrl.length < 3_800_000) {
+              resolve({ base64Data: lastDataUrl, mimeType: 'image/jpeg' });
+              return;
+            }
           }
         }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return resolve({ base64Data: dataUrl, mimeType: file.type || 'image/jpeg' });
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-        const optimizedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve({
-          base64Data: optimizedDataUrl,
-          mimeType: 'image/jpeg',
-        });
+        resolve({ base64Data: lastDataUrl, mimeType: 'image/jpeg' });
       };
       img.onerror = () => {
         resolve({ base64Data: dataUrl, mimeType: file.type || 'image/jpeg' });

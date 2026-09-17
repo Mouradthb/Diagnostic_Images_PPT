@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud,
   FileImage,
@@ -10,6 +10,7 @@ import {
   Sparkles,
   X,
   Building2,
+  LogOut,
 } from 'lucide-react';
 import { InspectionImageItem, DiagnosticResult } from './types';
 import { fileToBase64, formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
@@ -18,17 +19,75 @@ import { LegendBar } from './components/LegendBar';
 import { CodeModal } from './components/CodeModal';
 import { createSampleImageFile } from './data/sampleImages';
 
-export default function App() {
+interface AppProps {
+  email: string;
+  getIdToken: () => Promise<string>;
+  onSignOut: () => Promise<void>;
+}
+
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MAX_ORIGINAL_BYTES = 20_000_000;
+const MAX_REQUEST_BYTES = 4_000_000;
+
+async function requestAnalysis(file: File, getIdToken: () => Promise<string>): Promise<DiagnosticResult> {
+  const { base64Data, mimeType } = await prepareImageForAnalysis(file);
+  const body = JSON.stringify({ imageBase64: base64Data, mimeType });
+  if (new Blob([body]).size > MAX_REQUEST_BYTES) {
+    throw new Error('Cette photo reste trop volumineuse après compression (limite de 4 Mo).');
+  }
+
+  const token = await getIdToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 70_000);
+
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+      signal: controller.signal,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || `Erreur lors de l'analyse (${response.status}).`);
+    }
+    if (!data.niveau || !data.description_probleme || !data.remediation_proposee) {
+      throw new Error('Réponse invalide : champs requis manquants.');
+    }
+    return data as DiagnosticResult;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Analyse trop longue. Réessayez cette photo.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export default function App({ email, getIdToken, onSignOut }: AppProps) {
   const [items, setItems] = useState<InspectionImageItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  useEffect(() => () => {
+    itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+  }, []);
 
   // Ajouter des fichiers sélectionnés
   const handleAddFiles = (fileList: FileList | File[]) => {
-    const filesArray = Array.from(fileList).filter((file) => file.type.startsWith('image/'));
+    const filesArray = Array.from(fileList).filter((file) => ACCEPTED_TYPES.has(file.type) && file.size <= MAX_ORIGINAL_BYTES);
+    setUploadError(filesArray.length === fileList.length ? '' : 'Certains fichiers ont été ignorés : seuls JPG, PNG et WEBP de 20 Mo maximum sont acceptés.');
     if (filesArray.length === 0) return;
 
     const newItems: InspectionImageItem[] = filesArray.map((file) => ({
@@ -60,6 +119,7 @@ export default function App() {
     if (isAnalyzing) return;
     items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
     setItems([]);
+    setUploadError('');
     setCurrentIndex(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -122,31 +182,7 @@ export default function App() {
 
       try {
         // 2. Optimisation & conversion de l'image (redimensionnement intelligent pour éviter les surcharges/503)
-        const { base64Data, mimeType } = await prepareImageForAnalysis(currentItem.file);
-
-        // 3. Appel unitaire à l'API Gemini via notre route serveur sécurisée
-        const res = await fetch('/api/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imageBase64: base64Data,
-            mimeType: mimeType,
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(
-            errData.error || `Erreur lors de l'appel API (${res.status} ${res.statusText})`
-          );
-        }
-
-        const data: DiagnosticResult = await res.json();
-
-        // 4. Validation stricte des 3 champs
-        if (!data.niveau || !data.description_probleme || !data.remediation_proposee) {
-          throw new Error('Réponse invalide : champs requis manquants dans le JSON retourné.');
-        }
+        const data = await requestAnalysis(currentItem.file, getIdToken);
 
         // 5. Affichage progressif immédiat du résultat pour cette image
         setItems((prev) =>
@@ -200,28 +236,7 @@ export default function App() {
     );
 
     try {
-      const { base64Data, mimeType } = await prepareImageForAnalysis(item.file);
-
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: base64Data,
-          mimeType: mimeType,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(
-          errData.error || `Erreur lors de l'appel API (${res.status} ${res.statusText})`
-        );
-      }
-
-      const data: DiagnosticResult = await res.json();
-      if (!data.niveau || !data.description_probleme || !data.remediation_proposee) {
-        throw new Error('Réponse invalide : champs requis manquants dans le JSON retourné.');
-      }
+      const data = await requestAnalysis(item.file, getIdToken);
 
       setItems((prev) =>
         prev.map((it) =>
@@ -278,8 +293,14 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-center" />
+            <div className="flex items-center gap-2 self-end sm:self-center text-xs text-slate-600">
+              <span className="max-w-40 truncate" title={email}>{email}</span>
+              <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 hover:bg-slate-50 disabled:opacity-50">
+                <LogOut className="w-3.5 h-3.5" /> Déconnexion
+              </button>
+            </div>
           </div>
+
         </header>
 
         {/* Légende de la grille de hiérarchisation */}
@@ -287,6 +308,7 @@ export default function App() {
 
         {/* Section 1 : Zone d'upload multi-fichiers */}
         <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
+          {uploadError && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">{uploadError}</p>}
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900">
@@ -332,6 +354,7 @@ export default function App() {
               className="hidden"
               onChange={(e) => {
                 if (e.target.files) handleAddFiles(e.target.files);
+                e.target.value = '';
               }}
               disabled={isAnalyzing}
             />
