@@ -36,8 +36,8 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string }
 
 export function LegendBar() {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-3">
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex flex-col gap-1">
         <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
           Grille de hiérarchisation officielle PPPT
         </div>
@@ -45,7 +45,7 @@ export function LegendBar() {
           Loi Climat & Résilience (art. 14-2 loi 1965) • Décret n°2022-663
         </span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         {NIVEAUX.map((item) => {
           const style = getNiveauBadgeStyle(item.niveau);
           return (

@@ -75,8 +75,8 @@ export function AuthGate() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 px-4 py-12 flex items-center justify-center">
-      <main className="w-full max-w-md bg-white rounded-2xl border border-slate-200 p-7 shadow-sm space-y-5">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 px-4 py-6 text-slate-900 sm:p-8">
+      <main className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex items-center gap-3">
           <span className="p-2.5 bg-blue-600 text-white rounded-xl"><Building2 className="w-7 h-7" /></span>
           <div>
@@ -98,11 +98,11 @@ export function AuthGate() {
             <p>Compte connecté : <strong>{state.user.email}</strong></p>
             <p>Votre accès n'est pas encore configuré. Demandez à l'administrateur d'ajouter votre clé Gemini.</p>
             <p className="text-xs text-slate-500 break-all">Identifiant à transmettre à l'administrateur : {state.user.uid}</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => void checkAccess(state.user!)} className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold inline-flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button type="button" onClick={() => void checkAccess(state.user!)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
                 <RefreshCw className="w-4 h-4" /> Vérifier à nouveau
               </button>
-              <button type="button" onClick={() => void signOut(auth)} className="px-3 py-2 rounded-lg border border-slate-300 text-sm inline-flex items-center gap-2">
+              <button type="button" onClick={() => void signOut(auth)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors hover:bg-slate-50">
                 <LogOut className="w-4 h-4" /> Déconnexion
               </button>
             </div>
@@ -111,9 +111,9 @@ export function AuthGate() {
           <div className="space-y-4">
             {state.message && <p className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">{state.message}</p>}
             {state.user ? (
-              <div className="flex gap-2">
-                <button type="button" onClick={() => void checkAccess(state.user!)} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold">Réessayer</button>
-                <button type="button" onClick={() => void signOut(auth)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm">Déconnexion</button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button type="button" onClick={() => void checkAccess(state.user!)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">Réessayer</button>
+                <button type="button" onClick={() => void signOut(auth)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm transition-colors hover:bg-slate-50">Déconnexion</button>
               </div>
             ) : (
               <button type="button" onClick={() => void login()} className="w-full px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">

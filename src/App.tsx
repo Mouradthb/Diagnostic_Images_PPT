@@ -1,12 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   UploadCloud,
-  FileImage,
   Trash2,
   Play,
   Loader2,
-  RefreshCw,
-  Code2,
   Sparkles,
   X,
   Building2,
@@ -16,8 +13,6 @@ import { InspectionImageItem, DiagnosticResult } from './types';
 import { fileToBase64, formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
 import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
-import { CodeModal } from './components/CodeModal';
-import { createSampleImageFile } from './data/sampleImages';
 
 interface AppProps {
   email: string;
@@ -74,7 +69,6 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [showCodeModal, setShowCodeModal] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsRef = useRef(items);
@@ -123,34 +117,6 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     setCurrentIndex(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
-    }
-  };
-
-  // Charger des exemples de visite technique
-  const handleLoadSamples = async () => {
-    if (isAnalyzing) return;
-    try {
-      const sample1 = await createSampleImageFile(
-        'Fissure infiltrante sur façade Est',
-        '#78350f',
-        'Fissure verticale traversante avec traces d’humidité au niveau R+2',
-        'visite_facade_fissure_01.jpg'
-      );
-      const sample2 = await createSampleImageFile(
-        'Vase d’expansion corrodé en chaufferie',
-        '#1e293b',
-        'Oxydation prononcée au raccord et baisse de pression du circuit',
-        'visite_chaufferie_vase_02.jpg'
-      );
-      const sample3 = await createSampleImageFile(
-        'Éclairage palier défectueux et fils visibles',
-        '#334155',
-        'Boîtier de dérivation déboîté dans la cage d’escalier B',
-        'visite_parties_communes_03.jpg'
-      );
-      handleAddFiles([sample1, sample2, sample3]);
-    } catch (e) {
-      console.error('Erreur chargement des exemples:', e);
     }
   };
 
@@ -269,45 +235,47 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
   const completedCount = items.filter((i) => i.status === 'completed').length;
   const errorCount = items.filter((i) => i.status === 'error').length;
   const isStarted = items.some((i) => i.status !== 'pending');
+  const visibleResults = items.filter((item) => item.status !== 'pending');
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-[100dvh] bg-slate-100 text-slate-900 p-3 sm:p-5 xl:h-[100dvh] xl:overflow-hidden">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-4 xl:h-full">
         {/* Header principal */}
-        <header className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <header className="shrink-0 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-start gap-3">
-              <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs">
-                <Building2 className="w-7 h-7" />
+              <div className="rounded-xl bg-blue-600 p-2.5 text-white shadow-sm">
+                <Building2 className="h-6 w-6 sm:h-7 sm:w-7" />
               </div>
               <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 mb-1">
+                <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
                   PPPT • Loi Climat & Résilience • Analyse Unitaire
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                   Diagnostic Technique Bâtiment
                 </h1>
-                <p className="text-sm text-slate-600 mt-0.5">
+                <p className="mt-0.5 max-w-3xl text-xs text-slate-600 sm:text-sm">
                   Expertise ingénieur thermiques & fluides selon la grille officielle PPPT (décret n°2022-663).
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-center text-xs text-slate-600">
+            <div className="flex items-center gap-2 self-end text-xs text-slate-600 sm:self-center">
               <span className="max-w-40 truncate" title={email}>{email}</span>
-              <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 hover:bg-slate-50 disabled:opacity-50">
-                <LogOut className="w-3.5 h-3.5" /> Déconnexion
+              <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 transition-colors hover:bg-slate-50 disabled:opacity-50">
+                <LogOut className="h-3.5 w-3.5" /> Déconnexion
               </button>
             </div>
           </div>
-
         </header>
 
-        {/* Légende de la grille de hiérarchisation */}
-        <LegendBar />
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(22rem,0.82fr)_minmax(0,1.35fr)]">
+          <aside className="flex min-h-0 flex-col gap-4 xl:overflow-y-auto xl:pr-1">
+            {/* Légende de la grille de hiérarchisation */}
+            <LegendBar />
 
-        {/* Section 1 : Zone d'upload multi-fichiers */}
-        <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
+            {/* Section 1 : Zone d'upload multi-fichiers */}
+        <section className="space-y-5 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-6">
           {uploadError && <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">{uploadError}</p>}
           <div className="flex items-center justify-between">
             <div>
@@ -340,11 +308,20 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 fileInputRef.current.click();
               }
             }}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+            onKeyDown={(event) => {
+              if (!isAnalyzing && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            role="button"
+            tabIndex={isAnalyzing ? -1 : 0}
+            aria-disabled={isAnalyzing}
+            className={`cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:p-8 ${
               isDragging
-                ? 'border-blue-500 bg-blue-50/70 scale-[1.005]'
+                ? 'scale-[1.005] border-blue-500 bg-blue-50/70'
                 : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
-            } ${isAnalyzing ? 'opacity-60 cursor-not-allowed' : ''}`}
+            } ${isAnalyzing ? 'cursor-not-allowed opacity-60' : ''}`}
           >
             <input
               ref={fileInputRef}
@@ -399,7 +376,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
                 {items.map((item, idx) => (
                   <div
                     key={item.id}
@@ -490,54 +467,66 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
               )}
             </button>
           </div>
-        </section>
+            </section>
+          </aside>
 
-        {/* Section 2 : Affichage progressif des résultats */}
-        {(isStarted || items.some((i) => i.status !== 'pending')) && (
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
+          {/* Section 2 : Affichage progressif des résultats */}
+          <section className="flex min-h-[26rem] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm xl:min-h-0">
+            <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  2. Résultats du diagnostic unitaire
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Chaque photo est traitée de façon totalement isolée et indépendante.
-                </p>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">2</span>
+                  <h2 className="text-base font-bold text-slate-900 sm:text-lg">Résultats du diagnostic</h2>
+                </div>
+                <p className="text-xs text-slate-500">Chaque photo est traitée de façon totalement isolée et indépendante.</p>
               </div>
 
-              <div className="text-xs font-semibold text-slate-600 flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+                {isAnalyzing && (
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-blue-700">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> En cours
+                  </span>
+                )}
                 {completedCount > 0 && (
-                  <span className="text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                  <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">
                     {completedCount} analysée{completedCount > 1 ? 's' : ''}
                   </span>
                 )}
                 {errorCount > 0 && (
-                  <span className="text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-200">
+                  <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-red-700">
                     {errorCount} échec{errorCount > 1 ? 's' : ''}
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Cartes de résultats progressives */}
-            <div className="space-y-4">
-              {items
-                .filter((item) => item.status !== 'pending')
-                .map((item) => (
-                  <ResultCard
-                    key={item.id}
-                    item={item}
-                    onRetry={handleRetrySingle}
-                    disabled={isAnalyzing}
-                  />
-                ))}
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 xl:pr-3">
+              {isStarted ? (
+                <div className="space-y-4 xl:pr-2">
+                  {visibleResults.map((item) => (
+                    <ResultCard
+                      key={item.id}
+                      item={item}
+                      onRetry={handleRetrySingle}
+                      disabled={isAnalyzing}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-8 text-center">
+                  <div className="mb-4 rounded-2xl bg-blue-50 p-4 text-blue-600">
+                    <Sparkles className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800">Les diagnostics apparaîtront ici</h3>
+                  <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
+                    Ajoutez vos photos, puis lancez l’analyse pour suivre les résultats au fur et à mesure.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
-        )}
+        </div>
       </div>
-
-      {/* Modal pour voir et télécharger les 3 fichiers statiques index.html, style.css, app.js */}
-      <CodeModal isOpen={showCodeModal} onClose={() => setShowCodeModal(false)} />
     </div>
   );
 }
