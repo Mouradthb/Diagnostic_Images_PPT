@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { InspectionImageItem, DiagnosticResult } from './types';
 import { fileToBase64, formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
+import { AnalysisRequestError, selectRemainingIndices, shouldPauseBatch, withTransientRetry } from './utils/analysisRetry';
 import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
 
@@ -51,7 +52,7 @@ async function requestAnalysis(file: File, getIdToken: () => Promise<string>): P
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || `Erreur lors de l'analyse (${response.status}).`);
+      throw new AnalysisRequestError(data.error || `Erreur lors de l'analyse (${response.status}).`, response.status);
     }
     if (!data.statut_analyse || !data.niveau || !data.constat_factuel || !data.limites) {
       throw new Error('Réponse invalide : champs requis manquants.');
@@ -73,7 +74,9 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [batchMessage, setBatchMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const analysisLockRef = useRef(false);
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
@@ -117,6 +120,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
     setItems([]);
     setUploadError('');
+    setBatchMessage('');
     setCurrentIndex(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -125,78 +129,83 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
 
   // Lancement du traitement séquentiel, image par image
   const handleStartAnalysis = async () => {
-    if (items.length === 0 || isAnalyzing) return;
+    const remainingIndices = selectRemainingIndices(items);
+    if (remainingIndices.length === 0 || analysisLockRef.current) return;
 
+    analysisLockRef.current = true;
     setIsAnalyzing(true);
+    setBatchMessage('');
 
-    // Réinitialiser les statuts pour la session d'analyse
-    setItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        status: 'pending',
-        result: undefined,
-        errorMessage: undefined,
-      }))
-    );
+    // Traitement séquentiel strict : les diagnostics déjà terminés ne sont jamais relancés.
+    try {
+      for (const [position, i] of remainingIndices.entries()) {
+        setCurrentIndex(i);
+        const currentItem = items[i];
 
-    // Traitement séquentiel strict : UNE image après l'autre
-    for (let i = 0; i < items.length; i++) {
-      setCurrentIndex(i);
-      const currentItem = items[i];
-
-      // 1. Afficher immédiatement l'état "en cours" sur la carte de cette image
-      setItems((prev) =>
-        prev.map((it, idx) => (idx === i ? { ...it, status: 'analyzing' } : it))
-      );
-
-      try {
-        // 2. Optimisation & conversion de l'image (redimensionnement intelligent pour éviter les surcharges/503)
-        const data = await requestAnalysis(currentItem.file, getIdToken);
-
-        // 5. Affichage progressif immédiat du résultat pour cette image
         setItems((prev) =>
-          prev.map((it, idx) =>
-            idx === i
-              ? {
-                  ...it,
-                  status: 'completed',
-                  result: data,
-                  analyzedAt: new Date().toLocaleTimeString(),
-                }
-              : it
-          )
+          prev.map((it, idx) => (idx === i ? { ...it, status: 'analyzing', errorMessage: undefined } : it))
         );
-      } catch (error: any) {
-        console.error(`Erreur d'analyse pour ${currentItem.fileName}:`, error);
 
-        // 6. Gestion d'erreur par image : afficher sur SA carte sans bloquer les suivantes
-        setItems((prev) =>
-          prev.map((it, idx) =>
-            idx === i
-              ? {
-                  ...it,
-                  status: 'error',
-                  errorMessage: error?.message || 'Erreur inconnue lors du traitement de cette photo.',
-                }
-              : it
-          )
-        );
-      }
+        try {
+          const data = await withTransientRetry(() => requestAnalysis(currentItem.file, getIdToken));
 
-      // Petite pause de temporisation entre les requêtes pour prévenir les surcharges d'API
-      if (i < items.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+          setItems((prev) =>
+            prev.map((it, idx) =>
+              idx === i
+                ? {
+                    ...it,
+                    status: 'completed',
+                    result: data,
+                    analyzedAt: new Date().toLocaleTimeString(),
+                  }
+                : it
+            )
+          );
+        } catch (error) {
+          console.error(`Erreur d'analyse pour ${currentItem.fileName}:`, error);
+          setItems((prev) =>
+            prev.map((it, idx) =>
+              idx === i
+                ? {
+                    ...it,
+                    status: 'error',
+                    errorMessage: error instanceof Error ? error.message : 'Erreur inconnue lors du traitement de cette photo.',
+                  }
+                : it
+            )
+          );
+
+          if (shouldPauseBatch(error)) {
+            setBatchMessage(error instanceof AnalysisRequestError && error.status === 429
+              ? 'Analyse suspendue : la limite Gemini de cette clé est atteinte. Les résultats obtenus sont conservés. Vérifiez le quota dans Google AI Studio avant de reprendre.'
+              : error instanceof AnalysisRequestError && error.status === 503
+                ? 'Analyse suspendue : Gemini reste indisponible après plusieurs tentatives. Les résultats obtenus sont conservés. Réessayez plus tard.'
+                : 'Analyse suspendue : vérifiez votre accès Gemini avant de reprendre. Les résultats obtenus sont conservés.');
+            break;
+          }
+        }
+
+        // Espace les appels sans garantie d'éviter le quota propre à chaque projet.
+        if (position < remainingIndices.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 3_000));
+        }
       }
+    } finally {
+      analysisLockRef.current = false;
+      setIsAnalyzing(false);
+      setCurrentIndex(null);
     }
-
-    setIsAnalyzing(false);
-    setCurrentIndex(null);
   };
 
   // Réessayer une seule image ayant échoué
   const handleRetrySingle = async (id: string) => {
     const item = items.find((i) => i.id === id);
-    if (!item || isAnalyzing) return;
+    if (!item || analysisLockRef.current) return;
+
+    analysisLockRef.current = true;
+    setIsAnalyzing(true);
+    setCurrentIndex(items.findIndex((i) => i.id === id));
+    setBatchMessage('');
 
     setItems((prev) =>
       prev.map((it) =>
@@ -205,7 +214,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     );
 
     try {
-      const data = await requestAnalysis(item.file, getIdToken);
+      const data = await withTransientRetry(() => requestAnalysis(item.file, getIdToken));
 
       setItems((prev) =>
         prev.map((it) =>
@@ -219,7 +228,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
             : it
         )
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error(`Erreur lors du réessai pour ${item.fileName}:`, error);
       setItems((prev) =>
         prev.map((it) =>
@@ -227,16 +236,21 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
             ? {
                 ...it,
                 status: 'error',
-                errorMessage: error?.message || 'Erreur lors du réessai.',
+                errorMessage: error instanceof Error ? error.message : 'Erreur lors du réessai.',
               }
             : it
         )
       );
+    } finally {
+      analysisLockRef.current = false;
+      setIsAnalyzing(false);
+      setCurrentIndex(null);
     }
   };
 
   const completedCount = items.filter((i) => i.status === 'completed').length;
   const errorCount = items.filter((i) => i.status === 'error').length;
+  const remainingCount = items.length - completedCount;
   const isStarted = items.some((i) => i.status !== 'pending');
   const visibleResults = items.filter((item) => item.status !== 'pending');
 
@@ -322,10 +336,11 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 </div>
               )}
 
+              {batchMessage && <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{batchMessage}</p>}
               <div className="mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : `${items.length} photo${items.length > 1 ? 's' : ''} prête${items.length > 1 ? 's' : ''} à analyser.`}</p>
-                <button type="button" onClick={handleStartAnalysis} disabled={items.length === 0 || isAnalyzing} className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
-                  {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> Lancer l'analyse <ArrowRight className="size-4" /></>}
+                <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : remainingCount === 0 ? 'Toutes les photos sont analysées.' : `${remainingCount} photo${remainingCount > 1 ? 's' : ''} à analyser ou réessayer.`}</p>
+                <button type="button" onClick={handleStartAnalysis} disabled={remainingCount === 0 || isAnalyzing} className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
+                  {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> {isStarted ? 'Reprendre l’analyse' : 'Lancer l’analyse'} <ArrowRight className="size-4" /></>}
                 </button>
               </div>
             </section>

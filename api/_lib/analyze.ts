@@ -130,7 +130,7 @@ function providerError(error: unknown): HttpError {
     return new HttpError(403, "La clé Gemini de ce membre est invalide ou n'a pas accès au modèle.");
   }
   if (status === 429) {
-    return new HttpError(429, 'Le quota Gemini de ce membre est atteint. Réessayez plus tard.');
+    return new HttpError(429, 'Limite Gemini atteinte pour ce membre (débit ou quota). Réessayez plus tard.');
   }
   if (status === 503 || status === 504) {
     return new HttpError(503, 'Gemini est temporairement indisponible. Réessayez cette photo plus tard.');
