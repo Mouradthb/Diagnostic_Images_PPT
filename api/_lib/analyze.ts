@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import type { DiagnosticResult, DiagnosticNiveau } from '../types';
-import { HttpError } from './httpError';
-import { SYSTEM_INSTRUCTION } from './prompt';
+import type { DiagnosticResult, DiagnosticNiveau } from '../../src/types';
+import { HttpError } from './httpError.js';
+import { SYSTEM_INSTRUCTION } from './prompt.js';
 
 const MODEL = 'gemini-3.6-flash';
 const MAX_IMAGE_BYTES = 3_000_000;

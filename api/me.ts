@@ -1,5 +1,5 @@
-import { getMemberKey, verifyMember } from '../src/server/auth';
-import { publicError } from '../src/server/httpError';
+import { getMemberKey, verifyMember } from './_lib/auth.js';
+import { publicError } from './_lib/httpError.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {

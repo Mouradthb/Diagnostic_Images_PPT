@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import analyzeRoute from '../api/analyze';
 import meRoute from '../api/me';
-import { getMemberKey } from '../src/server/auth';
-import { analyzePhoto } from '../src/server/analyze';
-import { HttpError } from '../src/server/httpError';
+import { getMemberKey } from '../api/_lib/auth.js';
+import { analyzePhoto } from '../api/_lib/analyze.js';
+import { HttpError } from '../api/_lib/httpError.js';
 
 test('the API rejects callers without a verified identity', async () => {
   const analyze = await analyzeRoute.fetch(new Request('http://localhost/api/analyze', {

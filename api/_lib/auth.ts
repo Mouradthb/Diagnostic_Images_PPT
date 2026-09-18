@@ -1,6 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { HttpError } from './httpError';
+import { HttpError } from './httpError.js';
 
 export interface VerifiedMember {
   uid: string;

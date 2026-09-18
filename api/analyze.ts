@@ -1,6 +1,6 @@
-import { analyzePhoto } from '../src/server/analyze';
-import { requireAuthorizedMember } from '../src/server/auth';
-import { HttpError, publicError } from '../src/server/httpError';
+import { analyzePhoto } from './_lib/analyze.js';
+import { requireAuthorizedMember } from './_lib/auth.js';
+import { HttpError, publicError } from './_lib/httpError.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {

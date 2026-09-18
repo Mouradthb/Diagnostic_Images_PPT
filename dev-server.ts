@@ -3,9 +3,9 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import { analyzePhoto } from './src/server/analyze';
-import { getMemberKey, requireAuthorizedMember, verifyMember } from './src/server/auth';
-import { publicError } from './src/server/httpError';
+import { analyzePhoto } from './api/_lib/analyze.js';
+import { getMemberKey, requireAuthorizedMember, verifyMember } from './api/_lib/auth.js';
+import { publicError } from './api/_lib/httpError.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
