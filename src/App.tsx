@@ -53,7 +53,7 @@ async function requestAnalysis(file: File, getIdToken: () => Promise<string>): P
     if (!response.ok) {
       throw new Error(data.error || `Erreur lors de l'analyse (${response.status}).`);
     }
-    if (!data.niveau || !data.description_probleme || !data.remediation_proposee) {
+    if (!data.statut_analyse || !data.niveau || !data.constat_factuel || !data.limites) {
       throw new Error('Réponse invalide : champs requis manquants.');
     }
     return data as DiagnosticResult;

@@ -1,11 +1,11 @@
 import { getNiveauBadgeStyle } from '../utils/fileHelpers';
 import { DiagnosticNiveau } from '../types';
-import { AlertTriangle, Clock3, Info, Leaf, ShieldAlert, Wrench, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CircleHelp, Clock3, Info, Leaf, ShieldAlert, Wrench, type LucideIcon } from 'lucide-react';
 
 const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; icon: LucideIcon; tone: string }[] = [
   {
     niveau: 'Curatif Niveau 1',
-    description: 'Impact fort (< 2 ans)',
+    description: 'Priorité immédiate à 2 ans',
     detail: 'Urgent : sécurité personnes, bâti ou continuité de service',
     icon: ShieldAlert,
     tone: 'bg-rose-50 text-rose-700',
@@ -20,7 +20,7 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; 
   {
     niveau: 'Curatif Niveau 3',
     description: 'Impact faible (6 à 10 ans)',
-    detail: 'Rénovation / embellissement sans conséquence structurelle',
+    detail: 'Dégradation mineure sans enjeu fonctionnel ni simple choix décoratif',
     icon: Clock3,
     tone: 'bg-emerald-50 text-emerald-700',
   },
@@ -32,9 +32,9 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; 
     tone: 'bg-teal-50 text-teal-700',
   },
   {
-    niveau: 'Signalement',
-    description: 'Hors PPPT (Informatif)',
-    detail: 'Observation / vigilance (parties privatives / informatif)',
+    niveau: 'Signalement hors PPPT à vérifier',
+    description: 'Périmètre à vérifier',
+    detail: 'Observation sans enjeu collectif démontré depuis la photo',
     icon: Info,
     tone: 'bg-sky-50 text-sky-700',
   },
@@ -45,13 +45,20 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; 
     icon: Leaf,
     tone: 'bg-lime-50 text-lime-800',
   },
+  {
+    niveau: 'À confirmer / expertise nécessaire',
+    description: 'Photo ou gravité incertaine',
+    detail: 'Inspection complémentaire avant toute priorisation',
+    icon: CircleHelp,
+    tone: 'bg-slate-100 text-slate-700',
+  },
 ];
 
 export function LegendBar() {
   return (
     <section className="rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)]" aria-labelledby="legend-heading">
       <div className="mb-4">
-        <h2 id="legend-heading" className="text-sm font-semibold text-[#19313b]">Repères de priorité PPPT</h2>
+        <h2 id="legend-heading" className="text-sm font-semibold text-[#19313b]">Grille interne de priorité</h2>
         <p className="mt-1 text-[11px] leading-relaxed text-[#71868e]">
           Loi Climat & Résilience (art. 14-2 loi 1965) • Décret n°2022-663
         </p>

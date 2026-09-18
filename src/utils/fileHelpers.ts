@@ -112,10 +112,18 @@ export function getNiveauBadgeStyle(niveau: DiagnosticNiveau | string): BadgeSty
   }
   if (norm.toLowerCase().includes('signalement')) {
     return {
-      label: 'Signalement',
+      label: 'Signalement à vérifier',
       bgClass: 'bg-blue-600',
       textClass: 'text-white',
       borderClass: 'border-blue-700',
+    };
+  }
+  if (norm.toLowerCase().includes('confirmer') || norm.toLowerCase().includes('expertise')) {
+    return {
+      label: 'À confirmer',
+      bgClass: 'bg-slate-700',
+      textClass: 'text-white',
+      borderClass: 'border-slate-800',
     };
   }
   if (norm.toLowerCase().includes('énergétique') || norm.toLowerCase().includes('energetique')) {
