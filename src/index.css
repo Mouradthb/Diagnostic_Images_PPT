@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+body {
+  font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+}
+
+.app-shell {
+  background-color: #f1f6f6;
+  background-image: radial-gradient(circle at 8% 0%, rgba(130, 198, 187, 0.12), transparent 28rem);
+}
+
 html,
 body,
 #root {

@@ -1,6 +1,6 @@
 import { InspectionImageItem } from '../types';
 import { getNiveauBadgeStyle } from '../utils/fileHelpers';
-import { AlertCircle, CheckCircle2, Loader2, RotateCw } from 'lucide-react';
+import { CheckCircle2, CircleAlert, ClipboardList, Clock3, Loader2, RotateCw, Wrench } from 'lucide-react';
 
 interface ResultCardProps {
   item: InspectionImageItem;
@@ -15,113 +15,57 @@ export function ResultCard({ item, onRetry, disabled }: ResultCardProps) {
   return (
     <div
       id={`result-${item.id}`}
-      className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs transition-all flex flex-col md:flex-row"
+      className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[#dce6e8] bg-white shadow-[0_3px_14px_rgba(19,54,65,0.04)] md:flex-row"
     >
-      {/* Colonne Photo */}
-      <div className="w-full md:w-64 md:min-w-[16rem] bg-slate-100 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-slate-200">
-        <div className="relative w-full aspect-4/3 rounded-lg overflow-hidden bg-slate-200 border border-slate-300">
-          <img
-            src={item.previewUrl}
-            alt={item.fileName}
-            className="w-full h-full object-cover"
-          />
-          {item.status === 'completed' && (
-            <div className="absolute top-2 right-2 bg-emerald-600 text-white p-1 rounded-full shadow-xs">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          )}
+      <div className="border-b border-[#e5ecee] bg-[#f1f6f6] p-3 md:w-48 md:shrink-0 md:border-b-0 md:border-r xl:w-52">
+        <div className="relative aspect-4/3 overflow-hidden rounded-xl bg-[#dfe9ea]">
+          <img src={item.previewUrl} alt={item.fileName} className="size-full object-cover" />
+          {item.status === 'completed' && <span className="absolute right-2 top-2 rounded-full bg-[#087f74] p-1.5 text-white shadow-sm" title="Analyse terminée"><CheckCircle2 className="size-4" /></span>}
         </div>
-        <div className="mt-2 w-full text-center">
-          <p className="text-xs font-medium text-slate-700 truncate" title={item.fileName}>
-            {item.fileName}
-          </p>
-        </div>
+        <p className="mt-2.5 truncate text-xs font-medium text-[#3a5660]" title={item.fileName}>{item.fileName}</p>
+        {item.analyzedAt && <p className="mt-1 inline-flex items-center gap-1 text-[10px] text-[#71868e]"><Clock3 className="size-3" /> {item.analyzedAt}</p>}
       </div>
 
-      {/* Colonne Diagnostic */}
-      <div className="flex-1 p-5 flex flex-col justify-center">
-        {/* État : EN COURS D'ANALYSE */}
+      <div className="flex min-w-0 flex-1 flex-col justify-center p-4 sm:p-5">
         {item.status === 'analyzing' && (
-          <div className="flex flex-col items-start gap-3 py-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-              Analyse en cours par Gemini 3.6 Flash...
-            </div>
-            <p className="text-sm text-slate-500">
-              Évaluation technique unitaire de la photo selon la grille de hiérarchisation...
-            </p>
+          <div className="space-y-3 py-2" role="status">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#e7f4f1] px-3 py-1.5 text-xs font-semibold text-[#087f74]"><Loader2 className="size-3.5 animate-spin" /> Analyse en cours</span>
+            <p className="text-sm leading-relaxed text-[#627781]">Évaluation technique de cette photo selon la grille PPPT…</p>
           </div>
         )}
 
-        {/* État : ERREUR */}
         {item.status === 'error' && (
-          <div className="flex flex-col items-start gap-3">
-            <div className="flex items-center justify-between w-full flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-600 text-white">
-                <AlertCircle className="w-3.5 h-3.5" />
-                Erreur d'analyse
-              </span>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700"><CircleAlert className="size-3.5" /> Analyse interrompue</span>
               {onRetry && (
                 <button
                   type="button"
                   onClick={() => onRetry(item.id)}
                   disabled={disabled}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-700 hover:bg-red-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[#dce6e8] bg-white px-3 text-xs font-semibold text-[#19313b] transition-colors hover:bg-[#f2f8f7] focus-visible:outline-2 focus-visible:outline-[#087f74] disabled:opacity-50"
                 >
-                  <RotateCw className="w-3.5 h-3.5" />
-                  Réessayer cette photo
+                  <RotateCw className="size-3.5" /> Réessayer
                 </button>
               )}
             </div>
-            <div className="w-full bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-              <p className="font-semibold text-xs text-red-800 uppercase tracking-wide mb-1">
-                Détail pour cette photo :
-              </p>
-              <p>{item.errorMessage || "Une erreur inattendue s'est produite lors de l'appel API."}</p>
-            </div>
+            <p className="break-words rounded-xl border border-rose-100 bg-rose-50/70 p-3 text-sm leading-relaxed text-rose-800">{item.errorMessage || "Une erreur inattendue s'est produite lors de l'appel API."}</p>
           </div>
         )}
 
-        {/* État : TERMINÉ AVEC SUCCÈS */}
         {item.status === 'completed' && item.result && badgeStyle && (
-          <div className="flex flex-col gap-4">
-            {/* Badge de niveau coloré */}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${badgeStyle.bgClass} ${badgeStyle.textClass}`}>{badgeStyle.label}</span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#71868e]"><CheckCircle2 className="size-3.5 text-[#087f74]" /> Diagnostic terminé</span>
+            </div>
             <div>
-              <span
-                className={`inline-block px-3.5 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase shadow-xs ${badgeStyle.bgClass} ${badgeStyle.textClass}`}
-              >
-                {badgeStyle.label}
-              </span>
+              <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><ClipboardList className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Constat technique & risques</h3></div>
+              <p className="whitespace-pre-line break-words rounded-xl bg-[#f3f7f7] p-3 text-sm leading-relaxed text-[#263e48] sm:p-3.5">{item.result.description_probleme}</p>
             </div>
-
-            {/* Description du problème */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Constat technique & Risques
-                </span>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  Visuel • Cause • Évolution
-                </span>
-              </div>
-              <p className="text-sm text-slate-900 font-medium leading-relaxed bg-slate-50/90 p-3.5 rounded-lg border border-slate-200/80 whitespace-pre-line">
-                {item.result.description_probleme}
-              </p>
-            </div>
-
-            {/* Remédiation proposée */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Remédiation préconisée & Normes
-                </span>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  Travaux • DTU / Règles de l'art
-                </span>
-              </div>
-              <p className="text-sm text-slate-800 leading-relaxed bg-slate-50/90 p-3.5 rounded-lg border border-slate-200/80 whitespace-pre-line">
-                {item.result.remediation_proposee}
-              </p>
+            <div>
+              <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><Wrench className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Remédiation préconisée & normes</h3></div>
+              <p className="whitespace-pre-line break-words rounded-xl bg-[#f3f7f7] p-3 text-sm leading-relaxed text-[#263e48] sm:p-3.5">{item.result.remediation_proposee}</p>
             </div>
           </div>
         )}

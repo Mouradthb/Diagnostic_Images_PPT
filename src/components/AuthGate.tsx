@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
-import { Building2, Loader2, LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, LogOut, RefreshCw, ScanLine, ShieldCheck } from 'lucide-react';
 import App from '../App';
 import { getConfiguredAuth } from '../firebase';
 
@@ -75,53 +75,56 @@ export function AuthGate() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-100 px-4 py-6 text-slate-900 sm:p-8">
-      <main className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-7">
-        <div className="flex items-center gap-3">
-          <span className="p-2.5 bg-blue-600 text-white rounded-xl"><Building2 className="w-7 h-7" /></span>
-          <div>
-            <h1 className="text-xl font-bold">Diagnostic Technique Bâtiment</h1>
-            <p className="text-sm text-slate-500">Accès réservé aux membres autorisés</p>
-          </div>
+    <div className="app-shell flex min-h-[100dvh] items-center justify-center px-4 py-8 text-[#19313b] sm:p-8">
+      <main className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#dce6e8] bg-white shadow-[0_16px_48px_-28px_rgba(15,50,60,0.4)]">
+        <div className="bg-[#17313d] px-6 py-7 text-white sm:px-8">
+          <span className="mb-5 flex size-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#8fe3d2]"><ScanLine className="size-6" strokeWidth={1.8} /></span>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8fe3d2]">Espace de diagnostic · PPPT</p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Diagnostic Technique Bâtiment</h1>
+          <p className="mt-1 text-sm text-white/65">Accès réservé aux membres de l'équipe</p>
         </div>
+        <div className="space-y-5 px-6 py-6 sm:px-8">
+          <div className="flex items-center gap-2 text-xs font-medium text-[#637b82]"><ShieldCheck className="size-4 text-[#087f74]" /> Connexion sécurisée avec Google</div>
 
         {!auth ? (
-          <p className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">
+          <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">
             Firebase n'est pas encore configuré. L'administrateur doit renseigner les variables de l'application.
           </p>
         ) : state.status === 'loading' || state.status === 'checking' ? (
-          <p className="flex items-center gap-2 text-sm text-slate-600">
-            <Loader2 className="w-4 h-4 animate-spin" /> Vérification de votre accès…
+          <p className="flex items-center gap-2 text-sm text-[#627781]" role="status">
+            <Loader2 className="size-4 animate-spin" /> Vérification de votre accès…
           </p>
         ) : state.status === 'pending' && state.user ? (
           <div className="space-y-3 text-sm">
             <p>Compte connecté : <strong>{state.user.email}</strong></p>
             <p>Votre accès n'est pas encore configuré. Demandez à l'administrateur d'ajouter votre clé Gemini.</p>
-            <p className="text-xs text-slate-500 break-all">Identifiant à transmettre à l'administrateur : {state.user.uid}</p>
+            <p className="break-all rounded-xl bg-[#f3f7f7] p-3 text-xs text-[#627781]">Identifiant à transmettre à l'administrateur : {state.user.uid}</p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => void checkAccess(state.user!)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
-                <RefreshCw className="w-4 h-4" /> Vérifier à nouveau
+              <button type="button" onClick={() => void checkAccess(state.user!)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#076e65]">
+                <RefreshCw className="size-4" /> Vérifier à nouveau
               </button>
-              <button type="button" onClick={() => void signOut(auth)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors hover:bg-slate-50">
-                <LogOut className="w-4 h-4" /> Déconnexion
+              <button type="button" onClick={() => void signOut(auth)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#dce6e8] px-4 text-sm text-[#19313b] transition-colors hover:bg-[#f3f7f7]">
+                <LogOut className="size-4" /> Déconnexion
               </button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            {state.message && <p className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">{state.message}</p>}
+            {state.message && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{state.message}</p>}
             {state.user ? (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={() => void checkAccess(state.user!)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">Réessayer</button>
-                <button type="button" onClick={() => void signOut(auth)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm transition-colors hover:bg-slate-50">Déconnexion</button>
+                <button type="button" onClick={() => void checkAccess(state.user!)} className="min-h-10 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white hover:bg-[#076e65]">Réessayer</button>
+                <button type="button" onClick={() => void signOut(auth)} className="min-h-10 rounded-xl border border-[#dce6e8] px-4 text-sm hover:bg-[#f3f7f7]">Déconnexion</button>
               </div>
             ) : (
-              <button type="button" onClick={() => void login()} className="w-full px-4 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold inline-flex items-center justify-center gap-2">
-                <LogIn className="w-4 h-4" /> Se connecter avec Google
+              <button type="button" onClick={() => void login()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(8,127,116,0.16)] transition-colors hover:bg-[#076e65] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087f74]">
+                Se connecter avec Google <ArrowRight className="size-4" />
               </button>
             )}
           </div>
         )}
+          <p className="flex items-center justify-center gap-1.5 border-t border-[#e5ecee] pt-4 text-[11px] text-[#71868e]"><CheckCircle2 className="size-3.5 text-[#087f74]" /> Votre clé Gemini reste gérée par l'administrateur</p>
+        </div>
       </main>
     </div>
   );
