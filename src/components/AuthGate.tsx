@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
-import { ArrowRight, CheckCircle2, Loader2, LogOut, RefreshCw, ScanLine, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import App from '../App';
 import { getConfiguredAuth } from '../firebase';
 
@@ -77,9 +77,11 @@ export function AuthGate() {
   return (
     <div className="app-shell flex min-h-[100dvh] items-center justify-center px-4 py-8 text-[#19313b] sm:p-8">
       <main className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#dce6e8] bg-white shadow-[0_16px_48px_-28px_rgba(15,50,60,0.4)]">
-        <div className="bg-[#17313d] px-6 py-7 text-white sm:px-8">
-          <span className="mb-5 flex size-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#8fe3d2]"><ScanLine className="size-6" strokeWidth={1.8} /></span>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8fe3d2]">Espace de diagnostic · PPPT</p>
+        <div className="bg-[#1d315b] px-6 py-7 text-white sm:px-8">
+          <div className="mb-5 flex h-[75px] w-[252px] items-center justify-center rounded-xl bg-white px-2 shadow-sm">
+            <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
+          </div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Diagnostic Technique Bâtiment</h1>
           <p className="mt-1 text-sm text-white/65">Accès réservé aux membres de l'équipe</p>
         </div>
@@ -100,7 +102,7 @@ export function AuthGate() {
             <p>Votre accès n'est pas encore configuré. Demandez à l'administrateur d'ajouter votre clé Gemini.</p>
             <p className="break-all rounded-xl bg-[#f3f7f7] p-3 text-xs text-[#627781]">Identifiant à transmettre à l'administrateur : {state.user.uid}</p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => void checkAccess(state.user!)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#076e65]">
+              <button type="button" onClick={() => void checkAccess(state.user!)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0d6441]">
                 <RefreshCw className="size-4" /> Vérifier à nouveau
               </button>
               <button type="button" onClick={() => void signOut(auth)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#dce6e8] px-4 text-sm text-[#19313b] transition-colors hover:bg-[#f3f7f7]">
@@ -113,11 +115,11 @@ export function AuthGate() {
             {state.message && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{state.message}</p>}
             {state.user ? (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={() => void checkAccess(state.user!)} className="min-h-10 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white hover:bg-[#076e65]">Réessayer</button>
+                <button type="button" onClick={() => void checkAccess(state.user!)} className="min-h-10 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white hover:bg-[#0d6441]">Réessayer</button>
                 <button type="button" onClick={() => void signOut(auth)} className="min-h-10 rounded-xl border border-[#dce6e8] px-4 text-sm hover:bg-[#f3f7f7]">Déconnexion</button>
               </div>
             ) : (
-              <button type="button" onClick={() => void login()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(8,127,116,0.16)] transition-colors hover:bg-[#076e65] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087f74]">
+              <button type="button" onClick={() => void login()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-colors hover:bg-[#0d6441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52]">
                 Se connecter avec Google <ArrowRight className="size-4" />
               </button>
             )}

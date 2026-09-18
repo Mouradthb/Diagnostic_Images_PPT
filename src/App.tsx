@@ -8,7 +8,6 @@ import {
   ImagePlus,
   Trash2,
   Loader2,
-  ScanLine,
   ScanSearch,
   X,
   LogOut,
@@ -244,16 +243,16 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
   return (
     <div className="app-shell min-h-[100dvh] p-3 text-[#19313b] sm:p-4 xl:h-[100dvh] xl:overflow-hidden">
       <div className="mx-auto flex max-w-[1640px] flex-col gap-3.5 xl:h-full">
-        <header className="relative shrink-0 overflow-hidden rounded-[22px] bg-[#17313d] px-5 py-4 text-white shadow-[0_12px_32px_-22px_rgba(14,43,54,0.75)] sm:px-6">
+        <header className="relative shrink-0 overflow-hidden rounded-[22px] bg-[#1d315b] px-5 py-4 text-white shadow-[0_12px_32px_-22px_rgba(25,47,90,0.65)] sm:px-6">
           <div className="pointer-events-none absolute -right-10 -top-24 h-52 w-52 rounded-full border border-white/10 sm:right-28" aria-hidden="true" />
           <div className="pointer-events-none absolute -right-2 -top-16 h-52 w-52 rounded-full border border-white/10 sm:right-36" aria-hidden="true" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-3.5">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-[14px] border border-white/15 bg-white/10 text-[#8fe3d2]">
-                <ScanLine className="size-6" strokeWidth={1.8} />
+            <div className="flex min-w-0 flex-col items-start gap-3.5 sm:flex-row sm:items-center sm:gap-5">
+              <div className="flex h-[75px] w-[252px] shrink-0 items-center justify-center rounded-xl bg-white px-2 shadow-sm">
+                <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8fe3d2]">Espace de diagnostic · PPPT</p>
+              <div className="min-w-0 sm:border-l sm:border-white/20 sm:pl-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
                 <h1 className="mt-0.5 text-lg font-semibold tracking-tight sm:text-[22px]">Diagnostic Technique Bâtiment</h1>
                 <p className="mt-0.5 hidden text-xs text-white/60 sm:block">Analyse photo unitaire · Grille de hiérarchisation des interventions</p>
               </div>
@@ -274,9 +273,9 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
           <aside className="flex min-h-0 flex-col gap-3.5 xl:overflow-y-auto xl:pr-1">
             <section className="rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)] sm:p-6">
               <div className="mb-5 flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e7f4f1] text-[#087f74]"><Images className="size-5" strokeWidth={1.8} /></div>
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e9f6ed] text-[#147b52]"><Images className="size-5" strokeWidth={1.8} /></div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#087f74]">01 · Préparer l'analyse</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#147b52]">01 · Préparer l'analyse</p>
                   <h2 className="mt-0.5 text-lg font-semibold tracking-tight">Photos de visite</h2>
                   <p className="mt-0.5 text-xs leading-relaxed text-[#627781]">Ajoutez les vues à examiner. Chaque photo recevra son propre diagnostic.</p>
                 </div>
@@ -292,10 +291,10 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 role="button"
                 tabIndex={isAnalyzing ? -1 : 0}
                 aria-disabled={isAnalyzing}
-                className={`group flex cursor-pointer flex-col items-center rounded-2xl border border-dashed px-5 py-7 text-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087f74] sm:py-8 ${isDragging ? 'border-[#087f74] bg-[#e8f7f3] ring-4 ring-[#d9f0e9]' : 'border-[#a9c9c5] bg-[#f5faf9] hover:border-[#087f74] hover:bg-[#edf7f5]'} ${isAnalyzing ? 'cursor-not-allowed opacity-55' : ''}`}
+                className={`group flex cursor-pointer flex-col items-center rounded-2xl border border-dashed px-5 py-7 text-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] sm:py-8 ${isDragging ? 'border-[#147b52] bg-[#e9f6ed] ring-4 ring-[#dcefe3]' : 'border-[#a5cbb7] bg-[#f5faf7] hover:border-[#147b52] hover:bg-[#edf7f0]'} ${isAnalyzing ? 'cursor-not-allowed opacity-55' : ''}`}
               >
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { if (e.target.files) handleAddFiles(e.target.files); e.target.value = ''; }} disabled={isAnalyzing} />
-                <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-[#087f74] shadow-[0_4px_14px_rgba(17,83,75,0.1)] transition-transform group-hover:-translate-y-0.5"><ImagePlus className="size-6" strokeWidth={1.7} /></span>
+                <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-[#147b52] shadow-[0_4px_14px_rgba(25,96,61,0.1)] transition-transform group-hover:-translate-y-0.5"><ImagePlus className="size-6" strokeWidth={1.7} /></span>
                 <span className="text-sm font-semibold text-[#19313b]">Choisir des photos</span>
                 <span className="mt-1 text-xs text-[#637b82]">ou glisser-déposer des images ici</span>
                 <span className="mt-3 rounded-full border border-[#d8e8e4] bg-white px-3 py-1 text-[10px] font-medium text-[#637b82]">JPG, PNG, WEBP · 20 Mo max. par photo</span>
@@ -325,7 +324,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
 
               <div className="mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : `${items.length} photo${items.length > 1 ? 's' : ''} prête${items.length > 1 ? 's' : ''} à analyser.`}</p>
-                <button type="button" onClick={handleStartAnalysis} disabled={items.length === 0 || isAnalyzing} className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#087f74] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(8,127,116,0.16)] transition-all hover:bg-[#076e65] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087f74] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
+                <button type="button" onClick={handleStartAnalysis} disabled={items.length === 0 || isAnalyzing} className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
                   {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> Lancer l'analyse <ArrowRight className="size-4" /></>}
                 </button>
               </div>
@@ -336,9 +335,9 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
           <section className="flex min-h-[27rem] flex-col overflow-hidden rounded-[20px] border border-[#dce6e8] bg-white shadow-[0_2px_14px_rgba(19,54,65,0.04)] xl:min-h-0" aria-labelledby="results-heading">
             <div className="flex shrink-0 flex-col gap-3 border-b border-[#e5ecee] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#edf2f4] text-[#315b69]"><ClipboardCheck className="size-5" strokeWidth={1.8} /></div>
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#edf1fc] text-[#3356c9]"><ClipboardCheck className="size-5" strokeWidth={1.8} /></div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#087f74]">02 · Examiner les résultats</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3356c9]">02 · Examiner les résultats</p>
                   <h2 id="results-heading" className="mt-0.5 text-lg font-semibold tracking-tight">Diagnostics</h2>
                 </div>
               </div>

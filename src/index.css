@@ -5,8 +5,9 @@ body {
 }
 
 .app-shell {
-  background-color: #f1f6f6;
-  background-image: radial-gradient(circle at 8% 0%, rgba(130, 198, 187, 0.12), transparent 28rem);
+  background-color: #f3f6f9;
+  background-image: radial-gradient(circle at 8% 0%, rgba(58, 91, 196, 0.08), transparent 28rem),
+    radial-gradient(circle at 100% 100%, rgba(39, 166, 99, 0.06), transparent 30rem);
 }
 
 html,
