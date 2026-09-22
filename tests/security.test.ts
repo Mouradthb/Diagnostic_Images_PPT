@@ -74,57 +74,50 @@ test('the fallback error is preserved when both Gemini models are unavailable', 
   );
 });
 
-const indicativeResult = {
+const conciseDiagnostic = {
   statut_analyse: 'constat photographique indicatif',
-  niveau: 'Curatif Niveau 2',
-  domaines_techniques: ['façade'],
-  perimetre_apparent: 'partie commune',
-  constat_factuel: 'Une fissure est visible sur la façade.',
-  hypotheses_causes: ['Mouvement local à confirmer sur site.'],
-  enjeux: ['sauvegarde du bâti', 'performance énergétique'],
-  risques_evolution: 'La fissure pourrait s’étendre.',
-  action_immediate: 'Aucune mise en sécurité identifiable sur cette image seule.',
-  verification_preconisee: 'Inspecter la façade sur site.',
-  remediation_proposee: 'Définir les travaux après vérification.',
-  references_a_verifier: [],
-  niveau_confiance: 'moyen',
+  priorite: 'Curatif Niveau 2',
+  domaines: ['façade'],
+  perimetre: 'partie commune',
+  constat: 'Une fissure est visible sur la façade.',
+  risque: 'La fissure pourrait s’étendre, à confirmer sur site.',
+  action: 'Programmer un contrôle de la façade.',
+  verification: 'Inspecter la façade sur site.',
+  confiance: 'moyen',
   limites: 'La profondeur de la fissure ne peut être mesurée sur la photo.',
 };
 
-test('the full diagnostic contract accepts combined curative and energy issues', () => {
-  assert.deepEqual(validateResult(indicativeResult), indicativeResult);
+test('the concise diagnostic contract accepts the essential PPPT fields', () => {
+  assert.deepEqual(validateResult(conciseDiagnostic), conciseDiagnostic);
 });
 
 test('an unusable image can be returned without inventing a priority', () => {
   const unusable = {
-    ...indicativeResult,
+    ...conciseDiagnostic,
     statut_analyse: 'image non exploitable',
-    niveau: 'À confirmer / expertise nécessaire',
-    domaines_techniques: [],
-    perimetre_apparent: 'indéterminé',
-    constat_factuel: 'L’image est trop floue pour identifier l’ouvrage.',
-    hypotheses_causes: [],
-    enjeux: [],
-    risques_evolution: 'Non déterminable sur image seule.',
-    action_immediate: 'Aucune identifiable sur image seule.',
-    verification_preconisee: 'Fournir une photo plus nette ou réaliser une visite.',
-    remediation_proposee: 'Aucun travail ne peut être défini à ce stade.',
-    niveau_confiance: 'faible',
+    priorite: 'À confirmer / expertise nécessaire',
+    domaines: [],
+    perimetre: 'indéterminé',
+    constat: 'L’image est trop floue pour identifier l’ouvrage.',
+    risque: 'Non déterminable sur image seule.',
+    action: 'Demander une nouvelle photo nette.',
+    verification: 'Réaliser une visite si une nouvelle photo est impossible.',
+    confiance: 'faible',
     limites: 'Ouvrage et désordre non identifiables.',
   };
   assert.deepEqual(validateResult(unusable), unusable);
   assert.throws(
-    () => validateResult({ ...unusable, niveau: 'Curatif Niveau 1' }),
+    () => validateResult({ ...unusable, priorite: 'Curatif Niveau 1' }),
     (error: unknown) => error instanceof HttpError && error.status === 502
   );
 });
 
-test('unknown priorities and malformed detailed fields are rejected', () => {
+test('unknown priorities and malformed concise fields are rejected', () => {
   for (const invalid of [
-    { ...indicativeResult, niveau: 'Signalement' },
-    { ...indicativeResult, enjeux: ['risque inconnu'] },
-    { ...indicativeResult, constat_factuel: '' },
-    { ...indicativeResult, hypotheses_causes: 'cause supposée' },
+    { ...conciseDiagnostic, priorite: 'Signalement' },
+    { ...conciseDiagnostic, domaines: ['façade', 'toiture', 'réseau', 'ventilation'] },
+    { ...conciseDiagnostic, constat: '' },
+    { ...conciseDiagnostic, verification: ['inspection'] },
   ]) {
     assert.throws(
       () => validateResult(invalid),

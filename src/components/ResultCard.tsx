@@ -8,12 +8,10 @@ import {
   Clock3,
   Eye,
   Info,
-  Lightbulb,
   Loader2,
   MapPin,
   RotateCw,
   ShieldAlert,
-  Wrench,
 } from 'lucide-react';
 
 interface ResultCardProps {
@@ -24,7 +22,7 @@ interface ResultCardProps {
 }
 
 export function ResultCard({ item, onRetry, disabled }: ResultCardProps) {
-  const badgeStyle = item.result ? getNiveauBadgeStyle(item.result.niveau) : null;
+  const badgeStyle = item.result ? getNiveauBadgeStyle(item.result.priorite) : null;
   const isUnusable = item.result?.statut_analyse === 'image non exploitable';
   const statusLabel = item.result?.statut_analyse === 'constat photographique indicatif'
     ? 'Pré-analyse indicative'
@@ -79,67 +77,40 @@ export function ResultCard({ item, onRetry, disabled }: ResultCardProps) {
             <div className="flex flex-wrap items-center gap-2">
               <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${badgeStyle.bgClass} ${badgeStyle.textClass}`}>{badgeStyle.label}</span>
               <span className="inline-flex items-center gap-1 rounded-full bg-[#edf1fc] px-2.5 py-1 text-[11px] font-medium text-[#3356c9]"><Info className="size-3.5" /> {statusLabel}</span>
-              <span className="rounded-full border border-[#dce6e8] px-2.5 py-1 text-[11px] font-medium text-[#536b75]">Confiance : {item.result.niveau_confiance}</span>
+              <span className="rounded-full border border-[#dce6e8] px-2.5 py-1 text-[11px] font-medium text-[#536b75]">Confiance : {item.result.confiance}</span>
             </div>
 
             <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-[#e5ecee] pb-3 text-xs text-[#627781]">
-              <span className="inline-flex items-center gap-1.5"><MapPin className="size-3.5" /> {item.result.perimetre_apparent}</span>
-              {item.result.domaines_techniques.length > 0 && <span>Domaines : {item.result.domaines_techniques.join(', ')}</span>}
+              <span className="inline-flex items-center gap-1.5"><MapPin className="size-3.5" /> {item.result.perimetre}</span>
+              {item.result.domaines.length > 0 && <span>Domaines : {item.result.domaines.join(', ')}</span>}
             </div>
 
             <div>
-              <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><Eye className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Constat visible sur la photo</h3></div>
-              <p className="whitespace-pre-line break-words rounded-xl border border-[#dce6e8] bg-[#f6f9fa] p-3 text-sm leading-relaxed text-[#263e48] sm:p-3.5">{item.result.constat_factuel}</p>
+              <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><Eye className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Constat visible</h3></div>
+              <p className="whitespace-pre-line break-words rounded-xl border border-[#dce6e8] bg-[#f6f9fa] p-3 text-sm leading-relaxed text-[#263e48] sm:p-3.5">{item.result.constat}</p>
             </div>
-
-            {item.result.hypotheses_causes.length > 0 && (
-              <div>
-                <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><Lightbulb className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Hypothèses à confirmer</h3></div>
-                <ul className="space-y-1 rounded-xl bg-[#f6f9fa] p-3 text-sm leading-relaxed text-[#263e48] sm:p-3.5">
-                  {item.result.hypotheses_causes.map((hypothesis, index) => <li key={index} className="break-words">• {hypothesis}</li>)}
-                </ul>
-              </div>
-            )}
-
-            {item.result.enjeux.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <span className="mr-1 font-semibold text-[#536b75]">Enjeux possibles :</span>
-                {item.result.enjeux.map((enjeu) => <span key={enjeu} className="rounded-full bg-[#e9f6ed] px-2.5 py-1 font-medium text-[#147b52]">{enjeu}</span>)}
-              </div>
-            )}
 
             {!isUnusable && (
               <div>
-                <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><ShieldAlert className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Risques d'évolution possibles</h3></div>
-                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-[#263e48]">{item.result.risques_evolution}</p>
+                <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><ShieldAlert className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Risque à surveiller</h3></div>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-[#263e48]">{item.result.risque}</p>
               </div>
             )}
 
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-xl border border-amber-200/70 bg-amber-50/70 p-3">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-amber-800">Action immédiate à envisager</h3>
-                <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed text-[#263e48]">{item.result.action_immediate}</p>
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-amber-800">Action recommandée</h3>
+                <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed text-[#263e48]">{item.result.action}</p>
               </div>
               <div className="rounded-xl border border-[#dce6e8] bg-[#f6f9fa] p-3">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#315b69]">Vérification préconisée</h3>
-                <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed text-[#263e48]">{item.result.verification_preconisee}</p>
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#315b69]">Vérification sur site</h3>
+                <p className="mt-1.5 whitespace-pre-line break-words text-sm leading-relaxed text-[#263e48]">{item.result.verification}</p>
               </div>
-            </div>
-
-            <div>
-              <div className="mb-1.5 flex items-center gap-2 text-[#315b69]"><Wrench className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Remédiation après vérification</h3></div>
-              <p className="whitespace-pre-line break-words rounded-xl bg-[#f3f7f7] p-3 text-sm leading-relaxed text-[#263e48] sm:p-3.5">{item.result.remediation_proposee}</p>
             </div>
 
             <div className="border-t border-[#e5ecee] pt-3">
-              <div className="mb-1 flex items-center gap-2 text-[#536b75]"><ClipboardList className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Limites de cette photo</h3></div>
+              <div className="mb-1 flex items-center gap-2 text-[#536b75]"><ClipboardList className="size-4" strokeWidth={1.8} /><h3 className="text-[11px] font-bold uppercase tracking-[0.1em]">Limite de la photo</h3></div>
               <p className="break-words text-xs leading-relaxed text-[#627781]">{item.result.limites}</p>
-              {item.result.references_a_verifier.length > 0 && (
-                <details className="mt-3 rounded-lg border border-[#e5ecee] px-3 py-2 text-xs text-[#536b75]">
-                  <summary className="cursor-pointer font-semibold">Références à vérifier sur site</summary>
-                  <ul className="mt-2 space-y-1">{item.result.references_a_verifier.map((reference, index) => <li key={index} className="break-words">• {reference}</li>)}</ul>
-                </details>
-              )}
             </div>
           </div>
         )}

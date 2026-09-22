@@ -1,8 +1,7 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel, Type, type ThinkingConfig } from '@google/genai';
 import type { DiagnosticResult } from '../../src/types';
 import {
   DIAGNOSTIC_NIVEAUX,
-  ENJEUX_DIAGNOSTIC,
   NIVEAUX_CONFIANCE,
   PERIMETRES_APPARENTS,
   STATUTS_ANALYSE,
@@ -19,25 +18,19 @@ const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     statut_analyse: { type: Type.STRING, enum: [...STATUTS_ANALYSE] },
-    niveau: { type: Type.STRING, enum: [...DIAGNOSTIC_NIVEAUX] },
-    domaines_techniques: { type: Type.ARRAY, items: { type: Type.STRING } },
-    perimetre_apparent: { type: Type.STRING, enum: [...PERIMETRES_APPARENTS] },
-    constat_factuel: { type: Type.STRING },
-    hypotheses_causes: { type: Type.ARRAY, items: { type: Type.STRING } },
-    enjeux: { type: Type.ARRAY, items: { type: Type.STRING, enum: [...ENJEUX_DIAGNOSTIC] } },
-    risques_evolution: { type: Type.STRING },
-    action_immediate: { type: Type.STRING },
-    verification_preconisee: { type: Type.STRING },
-    remediation_proposee: { type: Type.STRING },
-    references_a_verifier: { type: Type.ARRAY, items: { type: Type.STRING } },
-    niveau_confiance: { type: Type.STRING, enum: [...NIVEAUX_CONFIANCE] },
+    priorite: { type: Type.STRING, enum: [...DIAGNOSTIC_NIVEAUX] },
+    domaines: { type: Type.ARRAY, items: { type: Type.STRING }, maxItems: 3 },
+    perimetre: { type: Type.STRING, enum: [...PERIMETRES_APPARENTS] },
+    constat: { type: Type.STRING },
+    risque: { type: Type.STRING },
+    action: { type: Type.STRING },
+    verification: { type: Type.STRING },
+    confiance: { type: Type.STRING, enum: [...NIVEAUX_CONFIANCE] },
     limites: { type: Type.STRING },
   },
   required: [
-    'statut_analyse', 'niveau', 'domaines_techniques', 'perimetre_apparent',
-    'constat_factuel', 'hypotheses_causes', 'enjeux', 'risques_evolution',
-    'action_immediate', 'verification_preconisee', 'remediation_proposee',
-    'references_a_verifier', 'niveau_confiance', 'limites',
+    'statut_analyse', 'priorite', 'domaines', 'perimetre', 'constat',
+    'risque', 'action', 'verification', 'confiance', 'limites',
   ],
 };
 
@@ -94,28 +87,24 @@ export function validateResult(value: unknown): DiagnosticResult {
 
   const result = value as Record<string, unknown>;
   if (!isOneOf(result.statut_analyse, STATUTS_ANALYSE)
-    || !isOneOf(result.niveau, DIAGNOSTIC_NIVEAUX)
-    || !isTextArray(result.domaines_techniques)
-    || !isOneOf(result.perimetre_apparent, PERIMETRES_APPARENTS)
-    || !isNonEmptyText(result.constat_factuel)
-    || !isTextArray(result.hypotheses_causes)
-    || !Array.isArray(result.enjeux)
-    || !result.enjeux.every((enjeu) => isOneOf(enjeu, ENJEUX_DIAGNOSTIC))
-    || !isNonEmptyText(result.risques_evolution)
-    || !isNonEmptyText(result.action_immediate)
-    || !isNonEmptyText(result.verification_preconisee)
-    || !isNonEmptyText(result.remediation_proposee)
-    || !isTextArray(result.references_a_verifier)
-    || !isOneOf(result.niveau_confiance, NIVEAUX_CONFIANCE)
+    || !isOneOf(result.priorite, DIAGNOSTIC_NIVEAUX)
+    || !isTextArray(result.domaines)
+    || result.domaines.length > 3
+    || !isOneOf(result.perimetre, PERIMETRES_APPARENTS)
+    || !isNonEmptyText(result.constat)
+    || !isNonEmptyText(result.risque)
+    || !isNonEmptyText(result.action)
+    || !isNonEmptyText(result.verification)
+    || !isOneOf(result.confiance, NIVEAUX_CONFIANCE)
     || !isNonEmptyText(result.limites)) {
     throw new HttpError(502, 'Le diagnostic reçu est incomplet. Réessayez cette photo.');
   }
 
   if (result.statut_analyse === 'image non exploitable'
-    && (result.niveau !== 'À confirmer / expertise nécessaire' || result.niveau_confiance !== 'faible')) {
+    && (result.priorite !== 'À confirmer / expertise nécessaire' || result.confiance !== 'faible')) {
     throw new HttpError(502, 'Le diagnostic reçu est incohérent. Réessayez cette photo.');
   }
-  if (result.statut_analyse === 'expertise nécessaire' && result.niveau !== 'À confirmer / expertise nécessaire') {
+  if (result.statut_analyse === 'expertise nécessaire' && result.priorite !== 'À confirmer / expertise nécessaire') {
     throw new HttpError(502, 'Le diagnostic reçu est incohérent. Réessayez cette photo.');
   }
 
@@ -211,6 +200,12 @@ function generateWithModel(
   data: string,
   mimeType: string
 ) {
+  const thinkingConfig: ThinkingConfig | undefined = model.startsWith('gemini-3.')
+    ? { thinkingLevel: ThinkingLevel.MINIMAL }
+    : model.startsWith('gemini-2.5')
+      ? { thinkingBudget: 0 }
+      : undefined;
+
   return ai.models.generateContent({
     model,
     contents: [
@@ -220,8 +215,10 @@ function generateWithModel(
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.15,
+      maxOutputTokens: 800,
       responseMimeType: 'application/json',
       responseSchema: RESPONSE_SCHEMA,
+      ...(thinkingConfig ? { thinkingConfig } : {}),
     },
   });
 }

@@ -2,7 +2,7 @@
 
 Application React/Vite d'analyse de photos de visite technique. L'interface envoie une photo à la fois à une API serveur, qui vérifie le compte Google du membre et appelle le modèle Gemini principal avec **sa propre clé Gemini**. En cas d'indisponibilité 503/504, le serveur essaie un modèle de secours avec la même clé.
 
-Chaque réponse est une **pré-analyse photographique indicative** : elle distingue constat visible, hypothèses, enjeux, vérifications, remédiation possible, niveau de confiance et limites de la photo. La hiérarchisation affichée est une grille interne, à confirmer par un professionnel sur site ; elle ne constitue pas un PPPT complet.
+Chaque réponse est une **pré-analyse photographique indicative et concise** : priorité, périmètre apparent, domaines, constat visible, risque conditionnel, action recommandée, vérification sur site, confiance et limites de la photo. La hiérarchisation affichée est une grille interne, à confirmer par un professionnel sur site ; elle ne constitue pas un PPPT complet.
 
 L'architecture décidée pour moins de 10 membres est détaillée dans [STRATEGIE_VERCEL_HOBBY.md](STRATEGIE_VERCEL_HOBBY.md). Aucun stockage de photos, de diagnostics ou de clés des membres n'est ajouté à l'application.
 

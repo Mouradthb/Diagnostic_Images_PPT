@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { InspectionImageItem, DiagnosticResult } from './types';
 import { fileToBase64, formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
-import { AnalysisRequestError, selectRemainingIndices, shouldPauseBatch, withTransientRetry } from './utils/analysisRetry';
+import { AnalysisRequestError, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
 import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
 
@@ -54,7 +54,7 @@ async function requestAnalysis(file: File, getIdToken: () => Promise<string>): P
     if (!response.ok) {
       throw new AnalysisRequestError(data.error || `Erreur lors de l'analyse (${response.status}).`, response.status);
     }
-    if (!data.statut_analyse || !data.niveau || !data.constat_factuel || !data.limites) {
+    if (!data.statut_analyse || !data.priorite || !data.constat || !data.action || !data.limites) {
       throw new Error('Réponse invalide : champs requis manquants.');
     }
     return data as DiagnosticResult;
@@ -147,7 +147,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
         );
 
         try {
-          const data = await withTransientRetry(() => requestAnalysis(currentItem.file, getIdToken));
+          const data = await requestAnalysis(currentItem.file, getIdToken);
 
           setItems((prev) =>
             prev.map((it, idx) =>
@@ -185,9 +185,9 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
           }
         }
 
-        // Espace les appels sans garantie d'éviter le quota propre à chaque projet.
+        // Respecte la limite gratuite de 5 appels/minute : une photo est traitée à la fois.
         if (position < remainingIndices.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 3_000));
+          await new Promise((resolve) => setTimeout(resolve, 15_000));
         }
       }
     } finally {
@@ -214,7 +214,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     );
 
     try {
-      const data = await withTransientRetry(() => requestAnalysis(item.file, getIdToken));
+      const data = await requestAnalysis(item.file, getIdToken);
 
       setItems((prev) =>
         prev.map((it) =>

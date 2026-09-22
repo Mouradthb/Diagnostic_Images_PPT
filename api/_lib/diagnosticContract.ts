@@ -22,11 +22,4 @@ export const PERIMETRES_APPARENTS = [
   'indéterminé',
 ] as const;
 
-export const ENJEUX_DIAGNOSTIC = [
-  'sauvegarde du bâti',
-  'santé et sécurité',
-  'continuité de service',
-  'performance énergétique',
-] as const;
-
 export const NIVEAUX_CONFIANCE = ['faible', 'moyen', 'élevé'] as const;
