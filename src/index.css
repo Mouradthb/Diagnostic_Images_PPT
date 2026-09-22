@@ -1,13 +1,34 @@
 @import "tailwindcss";
 
+:root {
+  --fv-surface: #e9eff1;
+  --fv-surface-raised: #eef4f5;
+  --fv-surface-deep: #e2e9ec;
+  --fv-ink: #1e3443;
+  --fv-ink-soft: #5f7480;
+  --fv-navy: #1d315b;
+  --fv-navy-deep: #14254b;
+  --fv-green: #13845a;
+  --fv-green-deep: #0e6747;
+  --fv-blue: #365bd6;
+  --fv-line: rgba(255, 255, 255, 0.72);
+  --fv-shadow-raised: 10px 10px 24px rgba(125, 146, 158, 0.24), -10px -10px 24px rgba(255, 255, 255, 0.94);
+  --fv-shadow-raised-sm: 5px 5px 12px rgba(125, 146, 158, 0.2), -5px -5px 12px rgba(255, 255, 255, 0.92);
+  --fv-shadow-inset: inset 5px 5px 10px rgba(137, 157, 168, 0.16), inset -5px -5px 10px rgba(255, 255, 255, 0.82);
+  --fv-shadow-inset-soft: inset 2px 2px 5px rgba(137, 157, 168, 0.12), inset -2px -2px 5px rgba(255, 255, 255, 0.76);
+}
+
 body {
   font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+  background: var(--fv-surface);
 }
 
 .app-shell {
-  background-color: #f3f6f9;
-  background-image: radial-gradient(circle at 8% 0%, rgba(58, 91, 196, 0.08), transparent 28rem),
-    radial-gradient(circle at 100% 100%, rgba(39, 166, 99, 0.06), transparent 30rem);
+  background-color: var(--fv-surface);
+  background-image:
+    radial-gradient(circle at 8% 0%, rgba(54, 91, 214, 0.1), transparent 28rem),
+    radial-gradient(circle at 100% 100%, rgba(19, 132, 90, 0.1), transparent 30rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 38%);
 }
 
 html,
@@ -23,5 +44,218 @@ body,
   #root {
     height: 100%;
     overflow: hidden;
+  }
+}
+
+/*
+ * France Verte soft UI system
+ * The relief is deliberately restrained: technical information must remain
+ * more prominent than the decorative effect.
+ */
+.neumo-header {
+  background: linear-gradient(145deg, #294276 0%, var(--fv-navy) 48%, #172850 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 12px 12px 28px rgba(62, 81, 101, 0.28), -5px -5px 14px rgba(255, 255, 255, 0.58), inset 1px 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+.neumo-logo-plaque {
+  background: linear-gradient(145deg, #ffffff, #e9eff1) !important;
+  box-shadow: 5px 5px 12px rgba(10, 26, 58, 0.23), -2px -2px 8px rgba(255, 255, 255, 0.12), inset 1px 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+.neumo-account {
+  text-shadow: 0 1px 1px rgba(6, 17, 41, 0.28);
+}
+
+.neumo-icon-button {
+  background: rgba(9, 24, 58, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 2px 2px 5px rgba(8, 22, 52, 0.28), inset -2px -2px 5px rgba(255, 255, 255, 0.08), 2px 2px 6px rgba(7, 19, 43, 0.18);
+}
+
+.neumo-icon-button:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 1px 1px 3px rgba(7, 19, 43, 0.18), -1px -1px 3px rgba(255, 255, 255, 0.1);
+}
+
+.neumo-panel {
+  background: var(--fv-surface) !important;
+  border-color: var(--fv-line) !important;
+  box-shadow: var(--fv-shadow-raised), inset 1px 1px 0 rgba(255, 255, 255, 0.62) !important;
+}
+
+.neumo-panel-divider {
+  border-color: rgba(128, 149, 160, 0.16) !important;
+}
+
+.neumo-icon {
+  background: linear-gradient(145deg, #f8fcfc, #dce8e9) !important;
+  box-shadow: var(--fv-shadow-raised-sm), inset 1px 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.neumo-icon-green { color: var(--fv-green) !important; }
+.neumo-icon-blue { color: var(--fv-blue) !important; }
+
+.neumo-dropzone {
+  background: var(--fv-surface-deep) !important;
+  border-color: rgba(19, 132, 90, 0.24) !important;
+  box-shadow: var(--fv-shadow-inset), inset 1px 1px 0 rgba(255, 255, 255, 0.45) !important;
+}
+
+.neumo-dropzone:hover,
+.neumo-dropzone.is-dragging {
+  background: #e5f0ea !important;
+  border-color: rgba(19, 132, 90, 0.62) !important;
+  box-shadow: var(--fv-shadow-inset), 0 0 0 4px rgba(19, 132, 90, 0.08) !important;
+}
+
+.neumo-inset,
+.neumo-results-scroll {
+  background: var(--fv-surface-deep) !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-thumbnail {
+  border-color: rgba(255, 255, 255, 0.74) !important;
+  box-shadow: 4px 4px 8px rgba(119, 140, 151, 0.24), -2px -2px 5px rgba(255, 255, 255, 0.72);
+}
+
+.neumo-thumbnail.is-current {
+  border-color: rgba(19, 132, 90, 0.7) !important;
+  box-shadow: 0 0 0 3px rgba(19, 132, 90, 0.14), 4px 4px 9px rgba(119, 140, 151, 0.24), -2px -2px 5px rgba(255, 255, 255, 0.72) !important;
+}
+
+.neumo-button-primary {
+  background: linear-gradient(145deg, #239d6d, var(--fv-green)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 5px 5px 12px rgba(21, 96, 71, 0.24), -2px -2px 6px rgba(255, 255, 255, 0.54), inset 1px 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.neumo-button-primary:hover:not(:disabled) {
+  background: linear-gradient(145deg, #2baa78, var(--fv-green-deep)) !important;
+  transform: translateY(-1px);
+}
+
+.neumo-button-primary:active:not(:disabled) {
+  transform: translateY(1px) !important;
+  box-shadow: inset 3px 3px 7px rgba(10, 83, 56, 0.26), inset -2px -2px 5px rgba(255, 255, 255, 0.12) !important;
+}
+
+.neumo-button-primary:disabled {
+  background: #d9e2e5 !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-button-secondary {
+  background: var(--fv-surface) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: var(--fv-shadow-raised-sm) !important;
+}
+
+.neumo-button-secondary:hover:not(:disabled) {
+  background: #eff5f5 !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-chip {
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  box-shadow: 2px 2px 5px rgba(134, 152, 161, 0.13), -2px -2px 5px rgba(255, 255, 255, 0.72);
+}
+
+.neumo-chip-success { background: #e4f3eb !important; color: #087150 !important; }
+.neumo-chip-error { background: #fae9eb !important; color: #bb2f45 !important; }
+.neumo-chip-neutral { background: #e7ebf8 !important; color: #3855b6 !important; }
+
+.neumo-alert-warning {
+  background: #fff6dc !important;
+  border-color: rgba(222, 169, 52, 0.46) !important;
+  box-shadow: inset 2px 2px 4px rgba(174, 130, 35, 0.08), inset -2px -2px 4px rgba(255, 255, 255, 0.6);
+}
+
+.neumo-empty-state {
+  background: var(--fv-surface) !important;
+  border-color: rgba(121, 143, 154, 0.16) !important;
+  box-shadow: var(--fv-shadow-inset) !important;
+}
+
+.neumo-result-card {
+  background: var(--fv-surface) !important;
+  border-color: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 6px 6px 14px rgba(121, 142, 153, 0.2), -6px -6px 14px rgba(255, 255, 255, 0.72), inset 1px 1px 0 rgba(255, 255, 255, 0.65) !important;
+}
+
+.neumo-result-media {
+  background: #e2eaec !important;
+  border-color: rgba(255, 255, 255, 0.58) !important;
+  box-shadow: inset -1px 0 0 rgba(125, 146, 158, 0.12);
+}
+
+.neumo-photo-frame {
+  box-shadow: var(--fv-shadow-inset-soft);
+}
+
+.neumo-content-inset {
+  background: #e5ecee !important;
+  border-color: rgba(255, 255, 255, 0.62) !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-action-card {
+  background: linear-gradient(145deg, #fff8e5, #f9efd1) !important;
+  border-color: rgba(230, 186, 73, 0.5) !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-error-card {
+  background: #f9e9eb !important;
+  border-color: rgba(232, 111, 132, 0.24) !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-legend-item {
+  background: #e6edef !important;
+  border-color: rgba(255, 255, 255, 0.64) !important;
+  box-shadow: 3px 3px 7px rgba(131, 149, 159, 0.16), -3px -3px 7px rgba(255, 255, 255, 0.7) !important;
+}
+
+.neumo-legend-item:hover {
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+.neumo-auth-card {
+  background: var(--fv-surface) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 16px 16px 36px rgba(118, 139, 151, 0.24), -16px -16px 36px rgba(255, 255, 255, 0.82), inset 1px 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
+.neumo-auth-hero {
+  background: linear-gradient(145deg, #294276 0%, var(--fv-navy) 54%, #172850 100%) !important;
+}
+
+.neumo-auth-note {
+  background: #e1eaec !important;
+  box-shadow: var(--fv-shadow-inset-soft) !important;
+}
+
+:where(button, [role="button"]):focus-visible {
+  outline: 2px solid var(--fv-blue) !important;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .neumo-panel,
+  .neumo-auth-card {
+    box-shadow: 7px 7px 16px rgba(125, 146, 158, 0.2), -7px -7px 16px rgba(255, 255, 255, 0.82) !important;
   }
 }

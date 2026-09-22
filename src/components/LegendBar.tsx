@@ -56,7 +56,7 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; 
 
 export function LegendBar() {
   return (
-    <section className="rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)]" aria-labelledby="legend-heading">
+    <section className="neumo-panel rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)]" aria-labelledby="legend-heading">
       <div className="mb-4">
         <h2 id="legend-heading" className="text-sm font-semibold text-[#19313b]">Grille interne de priorité</h2>
         <p className="mt-1 text-[11px] leading-relaxed text-[#71868e]">
@@ -70,11 +70,11 @@ export function LegendBar() {
           return (
             <div
               key={item.niveau}
-              className="min-w-0 rounded-xl border border-[#e3ebed] bg-[#fbfdfd] p-2.5 transition-colors hover:bg-[#f2f8f7]"
+              className="neumo-legend-item min-w-0 rounded-xl border border-[#e3ebed] bg-[#fbfdfd] p-2.5 transition-colors hover:bg-[#f2f8f7]"
               title={`${item.description} : ${item.detail}`}
             >
               <div className="mb-2 flex items-center justify-between gap-1">
-                <span className={`flex size-7 items-center justify-center rounded-lg ${item.tone}`}><Icon className="size-4" strokeWidth={1.8} /></span>
+                <span className={`neumo-icon flex size-7 items-center justify-center rounded-lg ${item.tone}`}><Icon className="size-4" strokeWidth={1.8} /></span>
                 <span className={`size-2 rounded-full ${style.bgClass}`} aria-hidden="true" />
               </div>
               <p className="text-[11px] font-semibold leading-tight text-[#19313b]">{style.label}</p>

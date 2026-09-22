@@ -76,9 +76,9 @@ export function AuthGate() {
 
   return (
     <div className="app-shell flex min-h-[100dvh] items-center justify-center px-4 py-8 text-[#19313b] sm:p-8">
-      <main className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#dce6e8] bg-white shadow-[0_16px_48px_-28px_rgba(15,50,60,0.4)]">
-        <div className="bg-[#1d315b] px-6 py-7 text-white sm:px-8">
-          <div className="mb-5 flex h-[75px] w-[252px] items-center justify-center rounded-xl bg-white px-2 shadow-sm">
+      <main className="neumo-auth-card w-full max-w-md overflow-hidden rounded-[24px] border border-[#dce6e8] bg-white shadow-[0_16px_48px_-28px_rgba(15,50,60,0.4)]">
+        <div className="neumo-auth-hero bg-[#1d315b] px-6 py-7 text-white sm:px-8">
+          <div className="neumo-logo-plaque mb-5 flex h-[75px] w-[252px] items-center justify-center rounded-xl bg-white px-2 shadow-sm">
             <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
           </div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
@@ -86,10 +86,10 @@ export function AuthGate() {
           <p className="mt-1 text-sm text-white/65">Accès réservé aux membres de l'équipe</p>
         </div>
         <div className="space-y-5 px-6 py-6 sm:px-8">
-          <div className="flex items-center gap-2 text-xs font-medium text-[#637b82]"><ShieldCheck className="size-4 text-[#087f74]" /> Connexion sécurisée avec Google</div>
+          <div className="neumo-auth-note flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium text-[#526b76]"><ShieldCheck className="size-4 text-[#087f74]" /> Connexion sécurisée avec Google</div>
 
         {!auth ? (
-          <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">
+          <p className="neumo-error-card rounded-xl bg-rose-50 p-3 text-sm text-rose-800">
             Firebase n'est pas encore configuré. L'administrateur doit renseigner les variables de l'application.
           </p>
         ) : state.status === 'loading' || state.status === 'checking' ? (
@@ -100,32 +100,32 @@ export function AuthGate() {
           <div className="space-y-3 text-sm">
             <p>Compte connecté : <strong>{state.user.email}</strong></p>
             <p>Votre accès n'est pas encore configuré. Demandez à l'administrateur d'ajouter votre clé Gemini.</p>
-            <p className="break-all rounded-xl bg-[#f3f7f7] p-3 text-xs text-[#627781]">Identifiant à transmettre à l'administrateur : {state.user.uid}</p>
+            <p className="neumo-auth-note break-all rounded-xl bg-[#f3f7f7] p-3 text-xs text-[#627781]">Identifiant à transmettre à l'administrateur : {state.user.uid}</p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="button" onClick={() => void checkAccess(state.user!)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0d6441]">
+              <button type="button" onClick={() => void checkAccess(state.user!)} className="neumo-button-primary inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0d6441]">
                 <RefreshCw className="size-4" /> Vérifier à nouveau
               </button>
-              <button type="button" onClick={() => void signOut(auth)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#dce6e8] px-4 text-sm text-[#19313b] transition-colors hover:bg-[#f3f7f7]">
+              <button type="button" onClick={() => void signOut(auth)} className="neumo-button-secondary inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#dce6e8] px-4 text-sm text-[#19313b] transition-colors hover:bg-[#f3f7f7]">
                 <LogOut className="size-4" /> Déconnexion
               </button>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            {state.message && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{state.message}</p>}
+            {state.message && <p role="alert" className="neumo-error-card rounded-xl bg-rose-50 p-3 text-sm text-rose-800">{state.message}</p>}
             {state.user ? (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={() => void checkAccess(state.user!)} className="min-h-10 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white hover:bg-[#0d6441]">Réessayer</button>
-                <button type="button" onClick={() => void signOut(auth)} className="min-h-10 rounded-xl border border-[#dce6e8] px-4 text-sm hover:bg-[#f3f7f7]">Déconnexion</button>
+                <button type="button" onClick={() => void checkAccess(state.user!)} className="neumo-button-primary min-h-10 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white hover:bg-[#0d6441]">Réessayer</button>
+                <button type="button" onClick={() => void signOut(auth)} className="neumo-button-secondary min-h-10 rounded-xl border border-[#dce6e8] px-4 text-sm hover:bg-[#f3f7f7]">Déconnexion</button>
               </div>
             ) : (
-              <button type="button" onClick={() => void login()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-colors hover:bg-[#0d6441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52]">
+              <button type="button" onClick={() => void login()} className="neumo-button-primary inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-colors hover:bg-[#0d6441] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52]">
                 Se connecter avec Google <ArrowRight className="size-4" />
               </button>
             )}
           </div>
         )}
-          <p className="flex items-center justify-center gap-1.5 border-t border-[#e5ecee] pt-4 text-[11px] text-[#71868e]"><CheckCircle2 className="size-3.5 text-[#087f74]" /> Votre clé Gemini reste gérée par l'administrateur</p>
+          <p className="neumo-panel-divider flex items-center justify-center gap-1.5 border-t border-[#e5ecee] pt-4 text-[11px] text-[#71868e]"><CheckCircle2 className="size-3.5 text-[#087f74]" /> Votre clé Gemini reste gérée par l'administrateur</p>
         </div>
       </main>
     </div>

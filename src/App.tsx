@@ -257,12 +257,12 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
   return (
     <div className="app-shell min-h-[100dvh] p-3 text-[#19313b] sm:p-4 xl:h-[100dvh] xl:overflow-hidden">
       <div className="mx-auto flex max-w-[1640px] flex-col gap-3.5 xl:h-full">
-        <header className="relative shrink-0 overflow-hidden rounded-[22px] bg-[#1d315b] px-5 py-4 text-white shadow-[0_12px_32px_-22px_rgba(25,47,90,0.65)] sm:px-6">
+        <header className="neumo-header relative shrink-0 overflow-hidden rounded-[22px] bg-[#1d315b] px-5 py-4 text-white shadow-[0_12px_32px_-22px_rgba(25,47,90,0.65)] sm:px-6">
           <div className="pointer-events-none absolute -right-10 -top-24 h-52 w-52 rounded-full border border-white/10 sm:right-28" aria-hidden="true" />
           <div className="pointer-events-none absolute -right-2 -top-16 h-52 w-52 rounded-full border border-white/10 sm:right-36" aria-hidden="true" />
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 flex-col items-start gap-3.5 sm:flex-row sm:items-center sm:gap-5">
-              <div className="flex h-[75px] w-[252px] shrink-0 items-center justify-center rounded-xl bg-white px-2 shadow-sm">
+              <div className="neumo-logo-plaque flex h-[75px] w-[252px] shrink-0 items-center justify-center rounded-xl bg-white px-2 shadow-sm">
                 <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
               </div>
               <div className="min-w-0 sm:border-l sm:border-white/20 sm:pl-5">
@@ -272,11 +272,11 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 sm:justify-end sm:border-0 sm:pt-0">
-              <div className="min-w-0 text-right">
+              <div className="neumo-account min-w-0 text-right">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Compte connecté</p>
                 <p className="max-w-48 truncate text-xs font-medium text-white/90" title={email}>{email}</p>
               </div>
-              <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40" title="Déconnexion" aria-label="Déconnexion">
+              <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="neumo-icon-button inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40" title="Déconnexion" aria-label="Déconnexion">
                 <LogOut className="size-4" />
               </button>
             </div>
@@ -285,9 +285,9 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
 
         <div className="grid min-h-0 flex-1 gap-3.5 xl:grid-cols-[minmax(22rem,0.82fr)_minmax(0,1.35fr)]">
           <aside className="flex min-h-0 flex-col gap-3.5 xl:overflow-y-auto xl:pr-1">
-            <section className="rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)] sm:p-6">
+            <section className="neumo-panel rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)] sm:p-6">
               <div className="mb-5 flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e9f6ed] text-[#147b52]"><Images className="size-5" strokeWidth={1.8} /></div>
+                <div className="neumo-icon neumo-icon-green flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e9f6ed] text-[#147b52]"><Images className="size-5" strokeWidth={1.8} /></div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#147b52]">01 · Préparer l'analyse</p>
                   <h2 className="mt-0.5 text-lg font-semibold tracking-tight">Photos de visite</h2>
@@ -295,7 +295,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 </div>
               </div>
 
-              {uploadError && <p role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{uploadError}</p>}
+              {uploadError && <p role="alert" className="neumo-error-card mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{uploadError}</p>}
               <div
                 onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
@@ -305,17 +305,17 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 role="button"
                 tabIndex={isAnalyzing ? -1 : 0}
                 aria-disabled={isAnalyzing}
-                className={`group flex cursor-pointer flex-col items-center rounded-2xl border border-dashed px-5 py-7 text-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] sm:py-8 ${isDragging ? 'border-[#147b52] bg-[#e9f6ed] ring-4 ring-[#dcefe3]' : 'border-[#a5cbb7] bg-[#f5faf7] hover:border-[#147b52] hover:bg-[#edf7f0]'} ${isAnalyzing ? 'cursor-not-allowed opacity-55' : ''}`}
+                className={`neumo-dropzone ${isDragging ? 'is-dragging' : ''} group flex cursor-pointer flex-col items-center rounded-2xl border border-dashed px-5 py-7 text-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] sm:py-8 ${isDragging ? 'border-[#147b52] bg-[#e9f6ed] ring-4 ring-[#dcefe3]' : 'border-[#a5cbb7] bg-[#f5faf7] hover:border-[#147b52] hover:bg-[#edf7f0]'} ${isAnalyzing ? 'cursor-not-allowed opacity-55' : ''}`}
               >
                 <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { if (e.target.files) handleAddFiles(e.target.files); e.target.value = ''; }} disabled={isAnalyzing} />
-                <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-[#147b52] shadow-[0_4px_14px_rgba(25,96,61,0.1)] transition-transform group-hover:-translate-y-0.5"><ImagePlus className="size-6" strokeWidth={1.7} /></span>
+                <span className="neumo-icon neumo-icon-green mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-[#147b52] shadow-[0_4px_14px_rgba(25,96,61,0.1)] transition-transform group-hover:-translate-y-0.5"><ImagePlus className="size-6" strokeWidth={1.7} /></span>
                 <span className="text-sm font-semibold text-[#19313b]">Choisir des photos</span>
                 <span className="mt-1 text-xs text-[#637b82]">ou glisser-déposer des images ici</span>
-                <span className="mt-3 rounded-full border border-[#d8e8e4] bg-white px-3 py-1 text-[10px] font-medium text-[#637b82]">JPG, PNG, WEBP · 20 Mo max. par photo</span>
+                <span className="neumo-chip mt-3 rounded-full border border-[#d8e8e4] bg-white px-3 py-1 text-[10px] font-medium text-[#637b82]">JPG, PNG, WEBP · 20 Mo max. par photo</span>
               </div>
 
               {items.length > 0 && (
-                <div className="mt-5 border-t border-[#e5ecee] pt-4">
+                <div className="neumo-panel-divider mt-5 border-t border-[#e5ecee] pt-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#19313b]"><Images className="size-4 text-[#087f74]" /> Sélection · {items.length} photo{items.length > 1 ? 's' : ''}</span>
                     {!isAnalyzing && <button type="button" onClick={handleClearAll} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[#a44b4b] hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#a44b4b]"><Trash2 className="size-3.5" /> Tout effacer</button>}
@@ -323,7 +323,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                   {isAnalyzing && currentIndex !== null && <p className="mb-3 text-xs font-medium text-[#087f74]" role="status">Traitement de la photo {currentIndex + 1} sur {items.length}</p>}
                   <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
                     {items.map((item, idx) => (
-                      <div key={item.id} className={`group relative aspect-square overflow-hidden rounded-xl border bg-[#eef3f4] ${currentIndex === idx ? 'border-[#087f74] ring-2 ring-[#9cd8cf]' : 'border-[#dce6e8]'}`}>
+                      <div key={item.id} className={`neumo-thumbnail ${currentIndex === idx ? 'is-current' : ''} group relative aspect-square overflow-hidden rounded-xl border bg-[#eef3f4] ${currentIndex === idx ? 'border-[#087f74] ring-2 ring-[#9cd8cf]' : 'border-[#dce6e8]'}`}>
                         <img src={item.previewUrl} alt={item.fileName} className="size-full object-cover" />
                         {item.status === 'analyzing' && <div className="absolute inset-0 flex items-center justify-center bg-[#17313d]/65 text-white"><Loader2 className="size-6 animate-spin" /></div>}
                         {item.status === 'completed' && <span className="absolute left-1.5 top-1.5 rounded-full bg-[#087f74] p-1 text-white" title="Terminé"><CheckCircle2 className="size-3.5" /></span>}
@@ -336,10 +336,10 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 </div>
               )}
 
-              {batchMessage && <p role="alert" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{batchMessage}</p>}
-              <div className="mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
+              {batchMessage && <p role="alert" className="neumo-alert-warning mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{batchMessage}</p>}
+              <div className="neumo-panel-divider mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : remainingCount === 0 ? 'Toutes les photos sont analysées.' : `${remainingCount} photo${remainingCount > 1 ? 's' : ''} à analyser ou réessayer.`}</p>
-                <button type="button" onClick={handleStartAnalysis} disabled={remainingCount === 0 || isAnalyzing} className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
+                <button type="button" onClick={handleStartAnalysis} disabled={remainingCount === 0 || isAnalyzing} className="neumo-button-primary inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
                   {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> {isStarted ? 'Reprendre l’analyse' : 'Lancer l’analyse'} <ArrowRight className="size-4" /></>}
                 </button>
               </div>
@@ -347,28 +347,28 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
             <LegendBar />
           </aside>
 
-          <section className="flex min-h-[27rem] flex-col overflow-hidden rounded-[20px] border border-[#dce6e8] bg-white shadow-[0_2px_14px_rgba(19,54,65,0.04)] xl:min-h-0" aria-labelledby="results-heading">
-            <div className="flex shrink-0 flex-col gap-3 border-b border-[#e5ecee] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <section className="neumo-panel flex min-h-[27rem] flex-col overflow-hidden rounded-[20px] border border-[#dce6e8] bg-white shadow-[0_2px_14px_rgba(19,54,65,0.04)] xl:min-h-0" aria-labelledby="results-heading">
+            <div className="neumo-panel-divider flex shrink-0 flex-col gap-3 border-b border-[#e5ecee] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#edf1fc] text-[#3356c9]"><ClipboardCheck className="size-5" strokeWidth={1.8} /></div>
+                <div className="neumo-icon neumo-icon-blue flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#edf1fc] text-[#3356c9]"><ClipboardCheck className="size-5" strokeWidth={1.8} /></div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3356c9]">02 · Examiner les résultats</p>
                   <h2 id="results-heading" className="mt-0.5 text-lg font-semibold tracking-tight">Diagnostics</h2>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                {isAnalyzing && <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><Loader2 className="size-3 animate-spin" /> En cours</span>}
-                {completedCount > 0 && <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><CheckCircle2 className="size-3" /> {completedCount} terminé{completedCount > 1 ? 's' : ''}</span>}
-                {errorCount > 0 && <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><CircleAlert className="size-3" /> {errorCount} échec{errorCount > 1 ? 's' : ''}</span>}
-                {!isStarted && <span className="rounded-full border border-[#dce6e8] px-2.5 py-1 text-[#71868e]">En attente</span>}
+                {isAnalyzing && <span className="neumo-chip neumo-chip-success inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><Loader2 className="size-3 animate-spin" /> En cours</span>}
+                {completedCount > 0 && <span className="neumo-chip neumo-chip-success inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><CheckCircle2 className="size-3" /> {completedCount} terminé{completedCount > 1 ? 's' : ''}</span>}
+                {errorCount > 0 && <span className="neumo-chip neumo-chip-error inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><CircleAlert className="size-3" /> {errorCount} échec{errorCount > 1 ? 's' : ''}</span>}
+                {!isStarted && <span className="neumo-chip rounded-full border border-[#dce6e8] px-2.5 py-1 text-[#71868e]">En attente</span>}
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[#fbfdfd] p-4 sm:p-5">
+            <div className="neumo-results-scroll min-h-0 flex-1 overflow-y-auto bg-[#fbfdfd] p-4 sm:p-5">
               {isStarted ? (
                 <div className="space-y-3.5">{visibleResults.map((item) => <ResultCard key={item.id} item={item} onRetry={handleRetrySingle} disabled={isAnalyzing} />)}</div>
               ) : (
-                <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce6e8] bg-white px-6 py-10 text-center">
-                  <div className="relative mb-5 flex size-16 items-center justify-center rounded-2xl bg-[#edf7f5] text-[#087f74]"><ScanSearch className="size-8" strokeWidth={1.5} /><span className="absolute -right-1 -top-1 size-3 rounded-full border-[3px] border-white bg-[#74cbbb]" /></div>
+                <div className="neumo-empty-state flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce6e8] bg-white px-6 py-10 text-center">
+                  <div className="neumo-icon neumo-icon-green relative mb-5 flex size-16 items-center justify-center rounded-2xl bg-[#edf7f5] text-[#087f74]"><ScanSearch className="size-8" strokeWidth={1.5} /><span className="absolute -right-1 -top-1 size-3 rounded-full border-[3px] border-white bg-[#74cbbb]" /></div>
                   <h3 className="text-base font-semibold tracking-tight text-[#19313b]">Prêt pour votre premier diagnostic</h3>
                   <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#71868e]">Ajoutez les photos de votre visite, puis lancez l'analyse. Les résultats apparaîtront ici au fur et à mesure.</p>
                 </div>
