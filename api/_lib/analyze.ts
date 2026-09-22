@@ -10,7 +10,16 @@ import { HttpError } from './httpError.js';
 import { SYSTEM_INSTRUCTION } from './prompt.js';
 
 const PRIMARY_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-2.5-flash';
+export function resolveFallbackModel(configuredFallbackModel: string | undefined): string {
+  const model = configuredFallbackModel?.trim();
+  // Gemini 2.5 Flash is refused for newly created Google projects. Keep old Vercel
+  // configuration working while moving every fallback to the current stable model.
+  return model === 'gemini-2.5-flash'
+    ? 'gemini-3.5-flash-lite'
+    : model || 'gemini-3.5-flash-lite';
+}
+
+const FALLBACK_MODEL = resolveFallbackModel(process.env.GEMINI_FALLBACK_MODEL);
 const MAX_IMAGE_BYTES = 3_000_000;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -187,6 +196,9 @@ function providerError(error: unknown): HttpError {
   }
   if (status === 429) {
     return new HttpError(429, 'Limite Gemini atteinte pour ce membre (débit ou quota). Réessayez plus tard.');
+  }
+  if (status === 404) {
+    return new HttpError(502, "Le modèle Gemini configuré n'est pas disponible pour cette clé. Contactez l'administrateur.");
   }
   if (status === 503 || status === 504) {
     return new HttpError(503, 'Gemini est temporairement indisponible. Réessayez cette photo plus tard.');

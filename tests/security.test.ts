@@ -3,7 +3,7 @@ import test from 'node:test';
 import analyzeRoute from '../api/analyze';
 import meRoute from '../api/me';
 import { getMemberKey } from '../api/_lib/auth.js';
-import { analyzePhoto, validateResult, withGeminiFallback } from '../api/_lib/analyze.js';
+import { analyzePhoto, resolveFallbackModel, validateResult, withGeminiFallback } from '../api/_lib/analyze.js';
 import { HttpError } from '../api/_lib/httpError.js';
 
 test('the API rejects callers without a verified identity', async () => {
@@ -47,6 +47,12 @@ test('a transient primary model failure uses the configured fallback model', asy
 
   assert.equal(result, 'diagnostic');
   assert.deepEqual(models, ['primary', 'fallback']);
+});
+
+test('the deprecated Gemini 2.5 fallback is migrated for new projects', () => {
+  assert.equal(resolveFallbackModel(undefined), 'gemini-3.5-flash-lite');
+  assert.equal(resolveFallbackModel(' gemini-2.5-flash '), 'gemini-3.5-flash-lite');
+  assert.equal(resolveFallbackModel('gemini-3.5-flash'), 'gemini-3.5-flash');
 });
 
 test('quota and authorization failures never use the fallback model', async () => {
