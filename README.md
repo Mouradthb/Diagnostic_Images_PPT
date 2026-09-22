@@ -1,6 +1,6 @@
 # Diagnostic Technique Bâtiment
 
-Application React/Vite d'analyse de photos de visite technique. L'interface envoie une photo à la fois à une API serveur, qui vérifie le compte Google du membre et appelle `gemini-3.6-flash` avec **sa propre clé Gemini**.
+Application React/Vite d'analyse de photos de visite technique. L'interface envoie une photo à la fois à une API serveur, qui vérifie le compte Google du membre et appelle le modèle Gemini principal avec **sa propre clé Gemini**. En cas d'indisponibilité 503/504, le serveur essaie un modèle de secours avec la même clé.
 
 Chaque réponse est une **pré-analyse photographique indicative** : elle distingue constat visible, hypothèses, enjeux, vérifications, remédiation possible, niveau de confiance et limites de la photo. La hiérarchisation affichée est une grille interne, à confirmer par un professionnel sur site ; elle ne constitue pas un PPPT complet.
 

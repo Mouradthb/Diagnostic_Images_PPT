@@ -8,7 +8,7 @@ export class AnalysisRequestError extends Error {
   }
 }
 
-const RETRY_DELAYS_MS = [2_000, 5_000] as const;
+const RETRY_DELAYS_MS = [5_000] as const;
 const MAX_JITTER_MS = 500;
 
 function httpStatus(error: unknown): number | undefined {
@@ -21,7 +21,7 @@ function defaultWait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Retry only transient Gemini 503 responses, at most twice. */
+/** Retry a transient Gemini 503 response once after the server-side model fallback. */
 export async function withTransientRetry<T>(
   operation: () => Promise<T>,
   wait: (ms: number) => Promise<void> = defaultWait

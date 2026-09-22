@@ -10,7 +10,8 @@ import {
 import { HttpError } from './httpError.js';
 import { SYSTEM_INSTRUCTION } from './prompt.js';
 
-const MODEL = 'gemini-3.6-flash';
+const PRIMARY_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL?.trim() || 'gemini-2.5-flash';
 const MAX_IMAGE_BYTES = 3_000_000;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -121,10 +122,76 @@ export function validateResult(value: unknown): DiagnosticResult {
   return result as unknown as DiagnosticResult;
 }
 
+function getProviderStatus(error: unknown): number {
+  if (typeof error !== 'object' || error === null) return 0;
+
+  for (const property of ['status', 'code'] as const) {
+    if (property in error) {
+      const value = Number(error[property]);
+      if (Number.isFinite(value)) return value;
+    }
+  }
+
+  return 0;
+}
+
+function getProviderCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+
+  for (const property of ['code', 'status'] as const) {
+    if (property in error && typeof error[property] === 'string') {
+      return error[property].slice(0, 80);
+    }
+  }
+
+  return undefined;
+}
+
+function safeProviderMessage(error: unknown, apiKey: string): string | undefined {
+  if (!(error instanceof Error) || !error.message) return undefined;
+
+  return error.message
+    .replaceAll(apiKey, '[REDACTED]')
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[REDACTED]')
+    .replace(/[\r\n]+/g, ' ')
+    .slice(0, 400);
+}
+
+function logProviderFailure(model: string, error: unknown, apiKey: string): void {
+  console.error('[Gemini] model request failed', {
+    model,
+    status: getProviderStatus(error) || undefined,
+    code: getProviderCode(error),
+    message: safeProviderMessage(error, apiKey),
+  });
+}
+
+export async function withGeminiFallback<T>(
+  request: (model: string) => Promise<T>,
+  primaryModel: string,
+  fallbackModel: string,
+  onFailure: (model: string, error: unknown) => void = () => undefined
+): Promise<T> {
+  try {
+    return await request(primaryModel);
+  } catch (primaryError) {
+    onFailure(primaryModel, primaryError);
+    const status = getProviderStatus(primaryError);
+    if ((status !== 503 && status !== 504) || fallbackModel === primaryModel) {
+      throw primaryError;
+    }
+  }
+
+  try {
+    return await request(fallbackModel);
+  } catch (fallbackError) {
+    onFailure(fallbackModel, fallbackError);
+    throw fallbackError;
+  }
+}
+
 function providerError(error: unknown): HttpError {
-  const status = typeof error === 'object' && error !== null && 'status' in error
-    ? Number(error.status)
-    : 0;
+  const status = getProviderStatus(error);
 
   if (status === 401 || status === 403) {
     return new HttpError(403, "La clé Gemini de ce membre est invalide ou n'a pas accès au modèle.");
@@ -138,25 +205,39 @@ function providerError(error: unknown): HttpError {
   return new HttpError(502, "L'analyse Gemini a échoué. Réessayez cette photo.");
 }
 
+function generateWithModel(
+  ai: GoogleGenAI,
+  model: string,
+  data: string,
+  mimeType: string
+) {
+  return ai.models.generateContent({
+    model,
+    contents: [
+      { inlineData: { mimeType, data } },
+      'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.',
+    ],
+    config: {
+      systemInstruction: SYSTEM_INSTRUCTION,
+      temperature: 0.15,
+      responseMimeType: 'application/json',
+      responseSchema: RESPONSE_SCHEMA,
+    },
+  });
+}
+
 export async function analyzePhoto(body: unknown, apiKey: string): Promise<DiagnosticResult> {
   const { data, mimeType } = validateImage(body);
   const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 60_000 } });
 
   let response;
   try {
-    response = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        { inlineData: { mimeType, data } },
-        'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.',
-      ],
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.15,
-        responseMimeType: 'application/json',
-        responseSchema: RESPONSE_SCHEMA,
-      },
-    });
+    response = await withGeminiFallback(
+      (model) => generateWithModel(ai, model, data, mimeType),
+      PRIMARY_MODEL,
+      FALLBACK_MODEL,
+      (model, error) => logProviderFailure(model, error, apiKey)
+    );
   } catch (error) {
     throw providerError(error);
   }

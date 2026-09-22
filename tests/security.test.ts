@@ -3,7 +3,7 @@ import test from 'node:test';
 import analyzeRoute from '../api/analyze';
 import meRoute from '../api/me';
 import { getMemberKey } from '../api/_lib/auth.js';
-import { analyzePhoto, validateResult } from '../api/_lib/analyze.js';
+import { analyzePhoto, validateResult, withGeminiFallback } from '../api/_lib/analyze.js';
 import { HttpError } from '../api/_lib/httpError.js';
 
 test('the API rejects callers without a verified identity', async () => {
@@ -34,6 +34,43 @@ test('invalid images are rejected before any Gemini call', async () => {
   await assert.rejects(
     analyzePhoto({ imageBase64: 'AAAA', mimeType: 'image/jpeg' }, 'unused-test-key'),
     (error: unknown) => error instanceof HttpError && error.status === 400
+  );
+});
+
+test('a transient primary model failure uses the configured fallback model', async () => {
+  const models: string[] = [];
+  const result = await withGeminiFallback(async (model) => {
+    models.push(model);
+    if (model === 'primary') throw Object.assign(new Error('Unavailable'), { status: 503 });
+    return 'diagnostic';
+  }, 'primary', 'fallback');
+
+  assert.equal(result, 'diagnostic');
+  assert.deepEqual(models, ['primary', 'fallback']);
+});
+
+test('quota and authorization failures never use the fallback model', async () => {
+  for (const status of [403, 429]) {
+    const models: string[] = [];
+    await assert.rejects(
+      withGeminiFallback(async (model) => {
+        models.push(model);
+        throw Object.assign(new Error('Rejected'), { status });
+      }, 'primary', 'fallback'),
+      (error: unknown) => error instanceof Error && 'status' in error && error.status === status
+    );
+    assert.deepEqual(models, ['primary']);
+  }
+});
+
+test('the fallback error is preserved when both Gemini models are unavailable', async () => {
+  const fallbackFailure = Object.assign(new Error('Fallback unavailable'), { status: 504 });
+  await assert.rejects(
+    withGeminiFallback(async (model) => {
+      if (model === 'primary') throw Object.assign(new Error('Primary unavailable'), { status: 503 });
+      throw fallbackFailure;
+    }, 'primary', 'fallback'),
+    (error: unknown) => error === fallbackFailure
   );
 });
 

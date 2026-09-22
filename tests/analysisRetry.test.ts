@@ -7,23 +7,22 @@ import {
   withTransientRetry,
 } from '../src/utils/analysisRetry.ts';
 
-test('a transient 503 is retried and succeeds after a growing delay', async () => {
+test('a transient 503 is retried once and succeeds after a delay', async () => {
   let attempts = 0;
   const delays: number[] = [];
   const result = await withTransientRetry(async () => {
     attempts++;
-    if (attempts < 3) throw new AnalysisRequestError('Gemini unavailable', 503);
+    if (attempts < 2) throw new AnalysisRequestError('Gemini unavailable', 503);
     return 'diagnostic';
   }, async (ms) => { delays.push(ms); });
 
   assert.equal(result, 'diagnostic');
-  assert.equal(attempts, 3);
-  assert.equal(delays.length, 2);
-  assert.ok(delays[0] >= 2_000 && delays[0] < 2_500);
-  assert.ok(delays[1] >= 5_000 && delays[1] < 5_500);
+  assert.equal(attempts, 2);
+  assert.equal(delays.length, 1);
+  assert.ok(delays[0] >= 5_000 && delays[0] < 5_500);
 });
 
-test('a persistent 503 stops after two retries and preserves the original error', async () => {
+test('a persistent 503 stops after one retry and preserves the original error', async () => {
   let attempts = 0;
   const delays: number[] = [];
   const failure = new AnalysisRequestError('Gemini unavailable', 503);
@@ -35,8 +34,8 @@ test('a persistent 503 stops after two retries and preserves the original error'
     }, async (ms) => { delays.push(ms); }),
     (error: unknown) => error === failure
   );
-  assert.equal(attempts, 3);
-  assert.equal(delays.length, 2);
+  assert.equal(attempts, 2);
+  assert.equal(delays.length, 1);
 });
 
 test('429 and other non-503 errors are not retried', async () => {
