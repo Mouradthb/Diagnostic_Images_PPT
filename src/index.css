@@ -1,40 +1,48 @@
 @import "tailwindcss";
 
 :root {
-  --fv-surface: #e9eff1;
-  --fv-surface-raised: #eef4f5;
-  --fv-surface-deep: #e2e9ec;
-  --fv-ink: #1e3443;
-  --fv-ink-soft: #5f7480;
-  --fv-navy: #1d315b;
-  --fv-navy-deep: #14254b;
-  --fv-green: #13845a;
-  --fv-green-deep: #0e6747;
-  --fv-blue: #365bd6;
-  --fv-line: rgba(255, 255, 255, 0.72);
-  --fv-shadow-raised: 10px 10px 24px rgba(125, 146, 158, 0.24), -10px -10px 24px rgba(255, 255, 255, 0.94);
-  --fv-shadow-raised-sm: 5px 5px 12px rgba(125, 146, 158, 0.2), -5px -5px 12px rgba(255, 255, 255, 0.92);
-  --fv-shadow-inset: inset 5px 5px 10px rgba(137, 157, 168, 0.16), inset -5px -5px 10px rgba(255, 255, 255, 0.82);
-  --fv-shadow-inset-soft: inset 2px 2px 5px rgba(137, 157, 168, 0.12), inset -2px -2px 5px rgba(255, 255, 255, 0.76);
-}
-
-body {
-  font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
-  background: var(--fv-surface);
-}
-
-.app-shell {
-  background-color: var(--fv-surface);
-  background-image:
-    radial-gradient(circle at 8% 0%, rgba(54, 91, 214, 0.1), transparent 28rem),
-    radial-gradient(circle at 100% 100%, rgba(19, 132, 90, 0.1), transparent 30rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 38%);
+  --fv-blue: #2a42fb;
+  --fv-green: #1aba63;
+  --fv-green-tint: #d7f3e1;
+  --fv-green-ink: #0b3d24;
+  --fv-yellow: #fed800;
+  --fv-yellow-ink: #3f2e00;
+  --fv-page: #f8faff;
+  --fv-card: #eef1ff;
+  --fv-card-strong: #e3e8ff;
+  --fv-ink: #1b1b1f;
+  --fv-muted: #5d6270;
+  --fv-error-tint: #ffe9ed;
+  --fv-error-ink: #8c1630;
+  --fv-hover-shadow: 0 10px 22px rgba(42, 66, 251, 0.14);
 }
 
 html,
 body,
 #root {
   min-height: 100%;
+}
+
+body {
+  background: var(--fv-page);
+  color: var(--fv-ink);
+  font-family: Roboto, "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500 !important;
+}
+
+.app-shell {
+  background-color: var(--fv-page);
+  background-image:
+    radial-gradient(circle at 8% 2%, rgba(42, 66, 251, 0.14), transparent 25rem),
+    radial-gradient(circle at 94% 88%, rgba(26, 186, 99, 0.13), transparent 28rem),
+    radial-gradient(circle at 84% 8%, rgba(254, 216, 0, 0.12), transparent 20rem);
 }
 
 /* On desktop, the workspace fills the viewport. Each panel keeps its own scroll. */
@@ -47,198 +55,323 @@ body,
   }
 }
 
-/*
- * France Verte soft UI system
- * The relief is deliberately restrained: technical information must remain
- * more prominent than the decorative effect.
- */
+/* France Verte tonal UI: depth comes from color steps, never hard lines. */
 .neumo-header {
-  background: linear-gradient(145deg, #294276 0%, var(--fv-navy) 48%, #172850 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 12px 12px 28px rgba(62, 81, 101, 0.28), -5px -5px 14px rgba(255, 255, 255, 0.58), inset 1px 1px 0 rgba(255, 255, 255, 0.1) !important;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2339d9, var(--fv-blue) 56%, #4a5cff) !important;
+  border: 0 !important;
+  border-radius: 32px !important;
+  box-shadow: none !important;
+}
+
+.neumo-header > [aria-hidden="true"] {
+  z-index: 0;
+  border: 0 !important;
+  filter: blur(12px);
+  opacity: 0.34;
+}
+
+.neumo-header > [aria-hidden="true"]:first-child {
+  background: var(--fv-green);
+}
+
+.neumo-header > [aria-hidden="true"]:nth-child(2) {
+  background: var(--fv-yellow);
+}
+
+.neumo-header::before,
+.neumo-auth-hero::before,
+.neumo-auth-hero::after {
+  position: absolute;
+  z-index: 0;
+  content: "";
+  border-radius: 9999px;
+  filter: blur(16px);
+  opacity: 0.26;
+  pointer-events: none;
+}
+
+.neumo-header::before {
+  right: 31%;
+  bottom: -6rem;
+  width: 15rem;
+  height: 15rem;
+  background: var(--fv-green);
+}
+
+.neumo-header > .relative {
+  z-index: 1;
 }
 
 .neumo-logo-plaque {
-  background: linear-gradient(145deg, #ffffff, #e9eff1) !important;
-  box-shadow: 5px 5px 12px rgba(10, 26, 58, 0.23), -2px -2px 8px rgba(255, 255, 255, 0.12), inset 1px 1px 0 rgba(255, 255, 255, 0.92) !important;
+  background: var(--fv-page) !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .neumo-account {
-  text-shadow: 0 1px 1px rgba(6, 17, 41, 0.28);
+  text-shadow: none;
 }
 
 .neumo-icon-button {
-  background: rgba(9, 24, 58, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: inset 2px 2px 5px rgba(8, 22, 52, 0.28), inset -2px -2px 5px rgba(255, 255, 255, 0.08), 2px 2px 6px rgba(7, 19, 43, 0.18);
+  width: 44px !important;
+  height: 44px !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: none !important;
 }
 
-.neumo-icon-button:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 1px 1px 3px rgba(7, 19, 43, 0.18), -1px -1px 3px rgba(255, 255, 255, 0.1);
+.neumo-icon-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16) !important;
+  opacity: 0.84;
+  box-shadow: 0 6px 15px rgba(18, 31, 117, 0.22) !important;
 }
 
-.neumo-panel {
-  background: var(--fv-surface) !important;
-  border-color: var(--fv-line) !important;
-  box-shadow: var(--fv-shadow-raised), inset 1px 1px 0 rgba(255, 255, 255, 0.62) !important;
+.neumo-panel,
+.neumo-result-card,
+.neumo-auth-card,
+.neumo-empty-state {
+  background: var(--fv-card) !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
+  transition: box-shadow 300ms ease, opacity 300ms ease;
+}
+
+.neumo-panel:hover,
+.neumo-result-card:hover,
+.neumo-auth-card:hover {
+  box-shadow: var(--fv-hover-shadow) !important;
 }
 
 .neumo-panel-divider {
-  border-color: rgba(128, 149, 160, 0.16) !important;
+  border-color: transparent !important;
 }
 
 .neumo-icon {
-  background: linear-gradient(145deg, #f8fcfc, #dce8e9) !important;
-  box-shadow: var(--fv-shadow-raised-sm), inset 1px 1px 0 rgba(255, 255, 255, 0.88);
+  background: var(--fv-page) !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .neumo-icon-green { color: var(--fv-green) !important; }
 .neumo-icon-blue { color: var(--fv-blue) !important; }
 
 .neumo-dropzone {
-  background: var(--fv-surface-deep) !important;
-  border-color: rgba(19, 132, 90, 0.24) !important;
-  box-shadow: var(--fv-shadow-inset), inset 1px 1px 0 rgba(255, 255, 255, 0.45) !important;
+  background: var(--fv-card-strong) !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
+  transition: opacity 300ms ease, box-shadow 300ms ease;
 }
 
 .neumo-dropzone:hover,
 .neumo-dropzone.is-dragging {
-  background: #e5f0ea !important;
-  border-color: rgba(19, 132, 90, 0.62) !important;
-  box-shadow: var(--fv-shadow-inset), 0 0 0 4px rgba(19, 132, 90, 0.08) !important;
+  background: var(--fv-card-strong) !important;
+  border-color: transparent !important;
+  opacity: 0.9;
+  box-shadow: var(--fv-hover-shadow) !important;
 }
 
 .neumo-inset,
 .neumo-results-scroll {
-  background: var(--fv-surface-deep) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--fv-card-strong) !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .neumo-thumbnail {
-  border-color: rgba(255, 255, 255, 0.74) !important;
-  box-shadow: 4px 4px 8px rgba(119, 140, 151, 0.24), -2px -2px 5px rgba(255, 255, 255, 0.72);
+  border: 0 !important;
+  box-shadow: none !important;
+  transition: opacity 300ms ease, box-shadow 300ms ease;
+}
+
+.neumo-thumbnail:hover {
+  box-shadow: 0 6px 14px rgba(42, 66, 251, 0.18) !important;
 }
 
 .neumo-thumbnail.is-current {
-  border-color: rgba(19, 132, 90, 0.7) !important;
-  box-shadow: 0 0 0 3px rgba(19, 132, 90, 0.14), 4px 4px 9px rgba(119, 140, 151, 0.24), -2px -2px 5px rgba(255, 255, 255, 0.72) !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 3px rgba(42, 66, 251, 0.42) !important;
+}
+
+button {
+  min-height: 44px;
+  border-radius: 9999px !important;
+  transition: opacity 300ms ease, transform 300ms ease, box-shadow 300ms ease !important;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.95) !important;
 }
 
 .neumo-button-primary {
-  background: linear-gradient(145deg, #239d6d, var(--fv-green)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 5px 5px 12px rgba(21, 96, 71, 0.24), -2px -2px 6px rgba(255, 255, 255, 0.54), inset 1px 1px 0 rgba(255, 255, 255, 0.2) !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: var(--fv-blue) !important;
+  box-shadow: none !important;
 }
 
 .neumo-button-primary:hover:not(:disabled) {
-  background: linear-gradient(145deg, #2baa78, var(--fv-green-deep)) !important;
-  transform: translateY(-1px);
-}
-
-.neumo-button-primary:active:not(:disabled) {
-  transform: translateY(1px) !important;
-  box-shadow: inset 3px 3px 7px rgba(10, 83, 56, 0.26), inset -2px -2px 5px rgba(255, 255, 255, 0.12) !important;
+  background: var(--fv-blue) !important;
+  opacity: 0.88;
+  box-shadow: 0 7px 16px rgba(42, 66, 251, 0.25) !important;
 }
 
 .neumo-button-primary:disabled {
-  background: #d9e2e5 !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: #ccd3f6 !important;
+  box-shadow: none !important;
 }
 
 .neumo-button-secondary {
-  background: var(--fv-surface) !important;
-  border-color: rgba(255, 255, 255, 0.8) !important;
-  box-shadow: var(--fv-shadow-raised-sm) !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: var(--fv-card-strong) !important;
+  box-shadow: none !important;
 }
 
 .neumo-button-secondary:hover:not(:disabled) {
-  background: #eff5f5 !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--fv-card-strong) !important;
+  opacity: 0.8;
+  box-shadow: 0 6px 14px rgba(42, 66, 251, 0.12) !important;
+}
+
+.neumo-text-button,
+.neumo-remove-button {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+}
+
+.neumo-text-button:hover:not(:disabled),
+.neumo-remove-button:hover:not(:disabled) {
+  background: inherit !important;
+  opacity: 0.72;
+  box-shadow: none !important;
 }
 
 .neumo-chip {
-  border: 1px solid rgba(255, 255, 255, 0.64);
-  box-shadow: 2px 2px 5px rgba(134, 152, 161, 0.13), -2px -2px 5px rgba(255, 255, 255, 0.72);
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: var(--fv-card-strong) !important;
+  box-shadow: none !important;
 }
 
-.neumo-chip-success { background: #e4f3eb !important; color: #087150 !important; }
-.neumo-chip-error { background: #fae9eb !important; color: #bb2f45 !important; }
-.neumo-chip-neutral { background: #e7ebf8 !important; color: #3855b6 !important; }
+.neumo-chip-success {
+  background: var(--fv-green-tint) !important;
+  color: var(--fv-green-ink) !important;
+}
+
+.neumo-chip-error {
+  background: var(--fv-error-tint) !important;
+  color: var(--fv-error-ink) !important;
+}
+
+.neumo-chip-neutral {
+  background: #dfe4ff !important;
+  color: var(--fv-blue) !important;
+}
 
 .neumo-alert-warning {
-  background: #fff6dc !important;
-  border-color: rgba(222, 169, 52, 0.46) !important;
-  box-shadow: inset 2px 2px 4px rgba(174, 130, 35, 0.08), inset -2px -2px 4px rgba(255, 255, 255, 0.6);
-}
-
-.neumo-empty-state {
-  background: var(--fv-surface) !important;
-  border-color: rgba(121, 143, 154, 0.16) !important;
-  box-shadow: var(--fv-shadow-inset) !important;
-}
-
-.neumo-result-card {
-  background: var(--fv-surface) !important;
-  border-color: rgba(255, 255, 255, 0.72) !important;
-  box-shadow: 6px 6px 14px rgba(121, 142, 153, 0.2), -6px -6px 14px rgba(255, 255, 255, 0.72), inset 1px 1px 0 rgba(255, 255, 255, 0.65) !important;
+  background: #fff3b8 !important;
+  border: 0 !important;
+  color: var(--fv-yellow-ink) !important;
+  box-shadow: none !important;
 }
 
 .neumo-result-media {
-  background: #e2eaec !important;
-  border-color: rgba(255, 255, 255, 0.58) !important;
-  box-shadow: inset -1px 0 0 rgba(125, 146, 158, 0.12);
+  background: var(--fv-card-strong) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .neumo-photo-frame {
-  box-shadow: var(--fv-shadow-inset-soft);
+  background: #dce3ff !important;
+  box-shadow: none !important;
 }
 
 .neumo-content-inset {
-  background: #e5ecee !important;
-  border-color: rgba(255, 255, 255, 0.62) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: #e1e6ff !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
 }
 
 .neumo-action-card {
-  background: linear-gradient(145deg, #fff8e5, #f9efd1) !important;
-  border-color: rgba(230, 186, 73, 0.5) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: #fff3b8 !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  color: var(--fv-yellow-ink) !important;
+  box-shadow: none !important;
 }
 
 .neumo-error-card {
-  background: #f9e9eb !important;
-  border-color: rgba(232, 111, 132, 0.24) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--fv-error-tint) !important;
+  border: 0 !important;
+  border-radius: 24px !important;
+  color: var(--fv-error-ink) !important;
+  box-shadow: none !important;
 }
 
 .neumo-legend-item {
-  background: #e6edef !important;
-  border-color: rgba(255, 255, 255, 0.64) !important;
-  box-shadow: 3px 3px 7px rgba(131, 149, 159, 0.16), -3px -3px 7px rgba(255, 255, 255, 0.7) !important;
+  background: var(--fv-card-strong) !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  transition: opacity 300ms ease, box-shadow 300ms ease;
 }
 
 .neumo-legend-item:hover {
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--fv-card-strong) !important;
+  opacity: 0.88;
+  box-shadow: 0 6px 14px rgba(42, 66, 251, 0.1) !important;
 }
 
 .neumo-auth-card {
-  background: var(--fv-surface) !important;
-  border-color: rgba(255, 255, 255, 0.7) !important;
-  box-shadow: 16px 16px 36px rgba(118, 139, 151, 0.24), -16px -16px 36px rgba(255, 255, 255, 0.82), inset 1px 1px 0 rgba(255, 255, 255, 0.7) !important;
+  border-radius: 32px !important;
 }
 
 .neumo-auth-hero {
-  background: linear-gradient(145deg, #294276 0%, var(--fv-navy) 54%, #172850 100%) !important;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2339d9, var(--fv-blue) 56%, #4a5cff) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.neumo-auth-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.neumo-auth-hero::before {
+  right: -4rem;
+  top: -6rem;
+  width: 13rem;
+  height: 13rem;
+  background: var(--fv-green);
+}
+
+.neumo-auth-hero::after {
+  left: -5rem;
+  bottom: -7rem;
+  width: 12rem;
+  height: 12rem;
+  background: var(--fv-yellow);
 }
 
 .neumo-auth-note {
-  background: #e1eaec !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--fv-green-tint) !important;
+  color: var(--fv-green-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 :where(button, [role="button"]):focus-visible {
-  outline: 2px solid var(--fv-blue) !important;
+  outline: 3px solid var(--fv-blue) !important;
   outline-offset: 3px;
 }
 
@@ -254,8 +387,8 @@ body,
 }
 
 @media (max-width: 639px) {
-  .neumo-panel,
+  .neumo-header,
   .neumo-auth-card {
-    box-shadow: 7px 7px 16px rgba(125, 146, 158, 0.2), -7px -7px 16px rgba(255, 255, 255, 0.82) !important;
+    border-radius: 28px !important;
   }
 }
