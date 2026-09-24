@@ -8,58 +8,58 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; 
     description: 'Priorité immédiate à 2 ans',
     detail: 'Urgent : sécurité personnes, bâti ou continuité de service',
     icon: ShieldAlert,
-    tone: 'bg-[#FEE2E2] text-[#991B1B]',
+    tone: 'bg-rose-50 text-rose-700',
   },
   {
     niveau: 'Curatif Niveau 2',
     description: 'Impact modéré (3 à 5 ans)',
     detail: 'Correctif : éviter dégradation progressive sans danger immédiat',
     icon: AlertTriangle,
-    tone: 'bg-[#FFEDD5] text-[#9A3412]',
+    tone: 'bg-amber-50 text-amber-700',
   },
   {
     niveau: 'Curatif Niveau 3',
     description: 'Impact faible (6 à 10 ans)',
     detail: 'Dégradation mineure sans enjeu fonctionnel ni simple choix décoratif',
     icon: Clock3,
-    tone: 'bg-[#D7F3E1] text-[#0B3D24]',
+    tone: 'bg-emerald-50 text-emerald-700',
   },
   {
     niveau: 'Entretien',
     description: 'Hors PPPT (Courant)',
     detail: 'Maintenance préventive courante, aucun désordre grave',
     icon: Wrench,
-    tone: 'bg-[#E0F2FE] text-[#0C4A6E]',
+    tone: 'bg-teal-50 text-teal-700',
   },
   {
     niveau: 'Signalement hors PPPT à vérifier',
     description: 'Périmètre à vérifier',
     detail: 'Observation sans enjeu collectif démontré depuis la photo',
     icon: Info,
-    tone: 'bg-[#E8EDFF] text-[#1D315B]',
+    tone: 'bg-sky-50 text-sky-700',
   },
   {
     niveau: 'Travaux énergétiques',
     description: 'Performance & Thermique',
     detail: 'Isolation, menuiseries, ventilation, chauffage collectif',
     icon: Leaf,
-    tone: 'bg-[#D7F3E1] text-[#0B3D24]',
+    tone: 'bg-lime-50 text-lime-800',
   },
   {
     niveau: 'À confirmer / expertise nécessaire',
     description: 'Photo ou gravité incertaine',
     detail: 'Inspection complémentaire avant toute priorisation',
     icon: CircleHelp,
-    tone: 'bg-[#E5E7EB] text-[#374151]',
+    tone: 'bg-slate-100 text-slate-700',
   },
 ];
 
 export function LegendBar() {
   return (
-    <section className="neumo-panel rounded-3xl border border-[#dce6e8] bg-white p-5" aria-labelledby="legend-heading">
+    <section className="neumo-panel rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)]" aria-labelledby="legend-heading">
       <div className="mb-4">
-        <h2 id="legend-heading" className="text-sm font-semibold text-[#1B1B1F]">Grille interne de priorité</h2>
-        <p className="mt-1 text-[11px] leading-relaxed text-[#5D6270]">
+        <h2 id="legend-heading" className="text-sm font-semibold text-[#19313b]">Grille interne de priorité</h2>
+        <p className="mt-1 text-[11px] leading-relaxed text-[#71868e]">
           Loi Climat & Résilience (art. 14-2 loi 1965) • Décret n°2022-663
         </p>
       </div>
@@ -77,8 +77,8 @@ export function LegendBar() {
                 <span className={`neumo-icon flex size-7 items-center justify-center rounded-lg ${item.tone}`}><Icon className="size-4" strokeWidth={1.8} /></span>
                 <span className={`size-2 rounded-full ${style.bgClass}`} aria-hidden="true" />
               </div>
-              <p className="text-[11px] font-semibold leading-tight text-[#1B1B1F]">{style.label}</p>
-              <p className="mt-0.5 text-[10px] leading-tight text-[#5D6270]">{item.description}</p>
+              <p className="text-[11px] font-semibold leading-tight text-[#19313b]">{style.label}</p>
+              <p className="mt-0.5 text-[10px] leading-tight text-[#71868e]">{item.description}</p>
             </div>
           );
         })}

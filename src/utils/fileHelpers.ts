@@ -81,64 +81,64 @@ export function getNiveauBadgeStyle(niveau: DiagnosticNiveau | string): BadgeSty
   if (norm.includes('Niveau 1') || norm.toLowerCase().includes('niveau 1')) {
     return {
       label: 'Curatif Niveau 1',
-      bgClass: 'bg-[#DC2626]',
+      bgClass: 'bg-red-600',
       textClass: 'text-white',
-      borderClass: 'border-transparent',
+      borderClass: 'border-red-700',
     };
   }
   if (norm.includes('Niveau 2') || norm.toLowerCase().includes('niveau 2')) {
     return {
       label: 'Curatif Niveau 2',
-      bgClass: 'bg-[#F97316]',
-      textClass: 'text-[#1B1B1F]',
-      borderClass: 'border-transparent',
+      bgClass: 'bg-orange-500',
+      textClass: 'text-white',
+      borderClass: 'border-orange-600',
     };
   }
   if (norm.includes('Niveau 3') || norm.toLowerCase().includes('niveau 3')) {
     return {
       label: 'Curatif Niveau 3',
-      bgClass: 'bg-[#D7F3E1]',
-      textClass: 'text-[#0B3D24]',
-      borderClass: 'border-transparent',
+      bgClass: 'bg-emerald-600',
+      textClass: 'text-white',
+      borderClass: 'border-emerald-700',
     };
   }
   if (norm.toLowerCase().includes('entretien')) {
     return {
       label: 'Entretien',
-      bgClass: 'bg-[#E0F2FE]',
-      textClass: 'text-[#0C4A6E]',
-      borderClass: 'border-transparent',
+      bgClass: 'bg-teal-600',
+      textClass: 'text-white',
+      borderClass: 'border-teal-700',
     };
   }
   if (norm.toLowerCase().includes('signalement')) {
     return {
       label: 'Signalement à vérifier',
-      bgClass: 'bg-[#1D315B]',
+      bgClass: 'bg-blue-600',
       textClass: 'text-white',
-      borderClass: 'border-transparent',
+      borderClass: 'border-blue-700',
     };
   }
   if (norm.toLowerCase().includes('confirmer') || norm.toLowerCase().includes('expertise')) {
     return {
       label: 'À confirmer',
-      bgClass: 'bg-[#E5E7EB]',
-      textClass: 'text-[#374151]',
-      borderClass: 'border-transparent',
+      bgClass: 'bg-slate-700',
+      textClass: 'text-white',
+      borderClass: 'border-slate-800',
     };
   }
   if (norm.toLowerCase().includes('énergétique') || norm.toLowerCase().includes('energetique')) {
     return {
       label: 'Travaux énergétiques',
-      bgClass: 'bg-[#D7F3E1]',
-      textClass: 'text-[#0B3D24]',
-      borderClass: 'border-transparent',
+      bgClass: 'bg-green-950',
+      textClass: 'text-white',
+      borderClass: 'border-green-900',
     };
   }
 
   return {
     label: niveau || 'Non classé',
-    bgClass: 'bg-[#E5E7EB]',
-    textClass: 'text-[#374151]',
-    borderClass: 'border-transparent',
+    bgClass: 'bg-zinc-700',
+    textClass: 'text-white',
+    borderClass: 'border-zinc-800',
   };
 }
