@@ -1,34 +1,26 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 :root {
-  --fv-surface: #e9eff1;
-  --fv-surface-raised: #eef4f5;
-  --fv-surface-deep: #e2e9ec;
-  --fv-ink: #1e3443;
-  --fv-ink-soft: #5f7480;
-  --fv-navy: #1d315b;
-  --fv-navy-deep: #14254b;
-  --fv-green: #13845a;
-  --fv-green-deep: #0e6747;
-  --fv-blue: #365bd6;
-  --fv-line: rgba(255, 255, 255, 0.72);
-  --fv-shadow-raised: 10px 10px 24px rgba(125, 146, 158, 0.24), -10px -10px 24px rgba(255, 255, 255, 0.94);
-  --fv-shadow-raised-sm: 5px 5px 12px rgba(125, 146, 158, 0.2), -5px -5px 12px rgba(255, 255, 255, 0.92);
-  --fv-shadow-inset: inset 5px 5px 10px rgba(137, 157, 168, 0.16), inset -5px -5px 10px rgba(255, 255, 255, 0.82);
-  --fv-shadow-inset-soft: inset 2px 2px 5px rgba(137, 157, 168, 0.12), inset -2px -2px 5px rgba(255, 255, 255, 0.76);
-}
-
-body {
-  font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
-  background: var(--fv-surface);
-}
-
-.app-shell {
-  background-color: var(--fv-surface);
-  background-image:
-    radial-gradient(circle at 8% 0%, rgba(54, 91, 214, 0.1), transparent 28rem),
-    radial-gradient(circle at 100% 100%, rgba(19, 132, 90, 0.1), transparent 30rem),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 38%);
+  --workbench-canvas: #f4f5f2;
+  --workbench-panel: #ffffff;
+  --workbench-panel-muted: #eef0ed;
+  --workbench-panel-soft: #f8f9f7;
+  --workbench-ink: #1f252b;
+  --workbench-ink-soft: #606970;
+  --workbench-ink-faint: #838b90;
+  --workbench-graphite: #252d33;
+  --workbench-line: #d9dcda;
+  --workbench-line-strong: #b7bdb9;
+  --workbench-focus: #26313a;
+  --status-n1: #dc2626;
+  --status-n2: #f97316;
+  --status-n3: #059669;
+  --status-maintenance: #0d9488;
+  --status-review: #2563eb;
+  color: var(--workbench-ink);
+  font-family: "IBM Plex Sans", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
 }
 
 html,
@@ -37,7 +29,25 @@ body,
   min-height: 100%;
 }
 
-/* On desktop, the workspace fills the viewport. Each panel keeps its own scroll. */
+body {
+  background: var(--workbench-canvas);
+  color: var(--workbench-ink);
+}
+
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  background-color: var(--workbench-canvas);
+  background-image:
+    linear-gradient(rgba(31, 37, 43, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 37, 43, 0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Desktop behaves like an inspection workstation: one viewport, local scrolling. */
 @media (min-width: 1280px) {
   html,
   body,
@@ -45,201 +55,402 @@ body,
     height: 100%;
     overflow: hidden;
   }
+
+  .workbench-grid {
+    grid-template-columns: minmax(21rem, 0.7fr) minmax(0, 1.55fr) !important;
+  }
 }
 
-/*
- * France Verte soft UI system
- * The relief is deliberately restrained: technical information must remain
- * more prominent than the decorative effect.
- */
+/* Utility bar */
 .neumo-header {
-  background: linear-gradient(145deg, #294276 0%, var(--fv-navy) 48%, #172850 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 12px 12px 28px rgba(62, 81, 101, 0.28), -5px -5px 14px rgba(255, 255, 255, 0.58), inset 1px 1px 0 rgba(255, 255, 255, 0.1) !important;
+  background: var(--workbench-graphite) !important;
+  border: 1px solid #363f45 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(15, 20, 24, 0.22) !important;
+  padding-bottom: 12px !important;
+  padding-top: 12px !important;
+}
+
+.neumo-header > [aria-hidden="true"] {
+  display: none;
 }
 
 .neumo-logo-plaque {
-  background: linear-gradient(145deg, #ffffff, #e9eff1) !important;
-  box-shadow: 5px 5px 12px rgba(10, 26, 58, 0.23), -2px -2px 8px rgba(255, 255, 255, 0.12), inset 1px 1px 0 rgba(255, 255, 255, 0.92) !important;
+  background: #fff !important;
+  border: 1px solid rgba(255, 255, 255, 0.68) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
 }
 
 .neumo-account {
-  text-shadow: 0 1px 1px rgba(6, 17, 41, 0.28);
+  text-shadow: none;
+}
+
+.section-kicker {
+  color: var(--workbench-ink-soft) !important;
+  font-family: "IBM Plex Mono", "Cascadia Mono", monospace;
+  font-weight: 500 !important;
+}
+
+.neumo-header .section-kicker,
+.neumo-auth-hero .section-kicker {
+  color: rgba(255, 255, 255, 0.58) !important;
 }
 
 .neumo-icon-button {
-  background: rgba(9, 24, 58, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  box-shadow: inset 2px 2px 5px rgba(8, 22, 52, 0.28), inset -2px -2px 5px rgba(255, 255, 255, 0.08), 2px 2px 6px rgba(7, 19, 43, 0.18);
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
 }
 
-.neumo-icon-button:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 1px 1px 3px rgba(7, 19, 43, 0.18), -1px -1px 3px rgba(255, 255, 255, 0.1);
+.neumo-icon-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12) !important;
 }
 
+/* Structural surfaces */
 .neumo-panel {
-  background: var(--fv-surface) !important;
-  border-color: var(--fv-line) !important;
-  box-shadow: var(--fv-shadow-raised), inset 1px 1px 0 rgba(255, 255, 255, 0.62) !important;
+  background: var(--workbench-panel) !important;
+  border: 1px solid var(--workbench-line) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 2px rgba(28, 35, 40, 0.04) !important;
 }
 
 .neumo-panel-divider {
-  border-color: rgba(128, 149, 160, 0.16) !important;
+  border-color: var(--workbench-line) !important;
+}
+
+.neumo-panel [class*="text-[#087f74]"],
+.neumo-panel [class*="text-[#147b52]"],
+.neumo-panel [class*="text-[#3356c9]"] {
+  color: var(--workbench-ink) !important;
+}
+
+.neumo-panel [class*="bg-[#087f74]"] {
+  background: var(--workbench-graphite) !important;
 }
 
 .neumo-icon {
-  background: linear-gradient(145deg, #f8fcfc, #dce8e9) !important;
-  box-shadow: var(--fv-shadow-raised-sm), inset 1px 1px 0 rgba(255, 255, 255, 0.88);
+  background: var(--workbench-panel-muted) !important;
+  border: 1px solid var(--workbench-line) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  color: var(--workbench-ink) !important;
 }
 
-.neumo-icon-green { color: var(--fv-green) !important; }
-.neumo-icon-blue { color: var(--fv-blue) !important; }
+.neumo-legend-item .neumo-icon {
+  background: transparent !important;
+  border-color: currentColor !important;
+  color: inherit !important;
+}
 
+/* Photo intake and inventory */
 .neumo-dropzone {
-  background: var(--fv-surface-deep) !important;
-  border-color: rgba(19, 132, 90, 0.24) !important;
-  box-shadow: var(--fv-shadow-inset), inset 1px 1px 0 rgba(255, 255, 255, 0.45) !important;
+  background:
+    linear-gradient(rgba(31, 37, 43, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 37, 43, 0.025) 1px, transparent 1px),
+    var(--workbench-panel-soft) !important;
+  background-size: 16px 16px !important;
+  border-color: var(--workbench-line-strong) !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
 }
 
-.neumo-dropzone:hover,
+.neumo-dropzone:hover:not([aria-disabled="true"]),
 .neumo-dropzone.is-dragging {
-  background: #e5f0ea !important;
-  border-color: rgba(19, 132, 90, 0.62) !important;
-  box-shadow: var(--fv-shadow-inset), 0 0 0 4px rgba(19, 132, 90, 0.08) !important;
+  background-color: var(--workbench-panel-muted) !important;
+  border-color: var(--workbench-graphite) !important;
+  box-shadow: 0 0 0 3px rgba(37, 45, 51, 0.08) !important;
+}
+
+.neumo-dropzone .neumo-icon {
+  background: var(--workbench-panel) !important;
+  transition: transform 220ms ease, background-color 220ms ease;
+}
+
+.neumo-dropzone:hover .neumo-icon {
+  transform: translateY(-2px);
 }
 
 .neumo-inset,
 .neumo-results-scroll {
-  background: var(--fv-surface-deep) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--workbench-panel-muted) !important;
+  box-shadow: none !important;
+}
+
+.neumo-results-scroll {
+  scrollbar-color: #a9afab transparent;
+  scrollbar-width: thin;
+}
+
+.neumo-results-scroll::-webkit-scrollbar,
+aside::-webkit-scrollbar {
+  width: 8px;
+}
+
+.neumo-results-scroll::-webkit-scrollbar-thumb,
+aside::-webkit-scrollbar-thumb {
+  background: #b9bebb;
+  border: 2px solid var(--workbench-panel-muted);
+  border-radius: 99px;
 }
 
 .neumo-thumbnail {
-  border-color: rgba(255, 255, 255, 0.74) !important;
-  box-shadow: 4px 4px 8px rgba(119, 140, 151, 0.24), -2px -2px 5px rgba(255, 255, 255, 0.72);
+  background: var(--workbench-panel-muted) !important;
+  border-color: var(--workbench-line) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.neumo-thumbnail:hover {
+  border-color: var(--workbench-line-strong) !important;
+  transform: translateY(-1px);
 }
 
 .neumo-thumbnail.is-current {
-  border-color: rgba(19, 132, 90, 0.7) !important;
-  box-shadow: 0 0 0 3px rgba(19, 132, 90, 0.14), 4px 4px 9px rgba(119, 140, 151, 0.24), -2px -2px 5px rgba(255, 255, 255, 0.72) !important;
+  border-color: var(--workbench-graphite) !important;
+  box-shadow: 0 0 0 2px rgba(37, 45, 51, 0.12) !important;
 }
 
+/* Controls */
 .neumo-button-primary {
-  background: linear-gradient(145deg, #239d6d, var(--fv-green)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 5px 5px 12px rgba(21, 96, 71, 0.24), -2px -2px 6px rgba(255, 255, 255, 0.54), inset 1px 1px 0 rgba(255, 255, 255, 0.2) !important;
+  background: var(--workbench-graphite) !important;
+  border: 1px solid var(--workbench-graphite) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  transition: opacity 220ms ease, transform 220ms ease, box-shadow 220ms ease !important;
 }
 
 .neumo-button-primary:hover:not(:disabled) {
-  background: linear-gradient(145deg, #2baa78, var(--fv-green-deep)) !important;
+  background: var(--workbench-graphite) !important;
+  box-shadow: 0 4px 12px rgba(24, 30, 34, 0.16) !important;
+  opacity: 0.9;
   transform: translateY(-1px);
 }
 
 .neumo-button-primary:active:not(:disabled) {
-  transform: translateY(1px) !important;
-  box-shadow: inset 3px 3px 7px rgba(10, 83, 56, 0.26), inset -2px -2px 5px rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+  transform: scale(0.98) !important;
 }
 
 .neumo-button-primary:disabled {
-  background: #d9e2e5 !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: #e2e4e2 !important;
+  border-color: #e2e4e2 !important;
+  box-shadow: none !important;
+  color: #8a918d !important;
 }
 
 .neumo-button-secondary {
-  background: var(--fv-surface) !important;
-  border-color: rgba(255, 255, 255, 0.8) !important;
-  box-shadow: var(--fv-shadow-raised-sm) !important;
+  background: var(--workbench-panel) !important;
+  border-color: var(--workbench-line-strong) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  color: var(--workbench-ink) !important;
+  transition: background-color 220ms ease, transform 220ms ease !important;
 }
 
 .neumo-button-secondary:hover:not(:disabled) {
-  background: #eff5f5 !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--workbench-panel-muted) !important;
+}
+
+.neumo-button-secondary:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .neumo-chip {
-  border: 1px solid rgba(255, 255, 255, 0.64);
-  box-shadow: 2px 2px 5px rgba(134, 152, 161, 0.13), -2px -2px 5px rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--workbench-line) !important;
+  box-shadow: none !important;
+  font-family: "IBM Plex Mono", "Cascadia Mono", monospace;
+  letter-spacing: -0.015em;
 }
 
-.neumo-chip-success { background: #e4f3eb !important; color: #087150 !important; }
-.neumo-chip-error { background: #fae9eb !important; color: #bb2f45 !important; }
-.neumo-chip-neutral { background: #e7ebf8 !important; color: #3855b6 !important; }
+.neumo-chip-success {
+  background: #e7e9e6 !important;
+  color: #343c41 !important;
+}
+
+.neumo-chip-error {
+  background: #fbe9e9 !important;
+  border-color: #f0c6c6 !important;
+  color: #a21f2d !important;
+}
+
+.neumo-chip-neutral {
+  background: #eceeec !important;
+  color: #454e54 !important;
+}
 
 .neumo-alert-warning {
-  background: #fff6dc !important;
-  border-color: rgba(222, 169, 52, 0.46) !important;
-  box-shadow: inset 2px 2px 4px rgba(174, 130, 35, 0.08), inset -2px -2px 4px rgba(255, 255, 255, 0.6);
-}
-
-.neumo-empty-state {
-  background: var(--fv-surface) !important;
-  border-color: rgba(121, 143, 154, 0.16) !important;
-  box-shadow: var(--fv-shadow-inset) !important;
-}
-
-.neumo-result-card {
-  background: var(--fv-surface) !important;
-  border-color: rgba(255, 255, 255, 0.72) !important;
-  box-shadow: 6px 6px 14px rgba(121, 142, 153, 0.2), -6px -6px 14px rgba(255, 255, 255, 0.72), inset 1px 1px 0 rgba(255, 255, 255, 0.65) !important;
-}
-
-.neumo-result-media {
-  background: #e2eaec !important;
-  border-color: rgba(255, 255, 255, 0.58) !important;
-  box-shadow: inset -1px 0 0 rgba(125, 146, 158, 0.12);
-}
-
-.neumo-photo-frame {
-  box-shadow: var(--fv-shadow-inset-soft);
-}
-
-.neumo-content-inset {
-  background: #e5ecee !important;
-  border-color: rgba(255, 255, 255, 0.62) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
-}
-
-.neumo-action-card {
-  background: linear-gradient(145deg, #fff8e5, #f9efd1) !important;
-  border-color: rgba(230, 186, 73, 0.5) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: #fff8e7 !important;
+  border-color: #e8cf94 !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
 }
 
 .neumo-error-card {
-  background: #f9e9eb !important;
-  border-color: rgba(232, 111, 132, 0.24) !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: #fdf0f0 !important;
+  border: 1px solid #efcaca !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
 }
 
+/* Empty and result states */
+.neumo-empty-state {
+  background:
+    linear-gradient(rgba(31, 37, 43, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 37, 43, 0.022) 1px, transparent 1px),
+    var(--workbench-panel-soft) !important;
+  background-size: 24px 24px !important;
+  border-color: var(--workbench-line-strong) !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+}
+
+.neumo-result-card {
+  --result-status: var(--workbench-line-strong);
+  background: var(--workbench-panel) !important;
+  border: 1px solid var(--workbench-line) !important;
+  border-left: 4px solid var(--result-status) !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+  position: relative;
+  transition: box-shadow 240ms ease, transform 240ms ease;
+}
+
+.neumo-result-card:hover {
+  box-shadow: 0 7px 18px rgba(24, 31, 35, 0.08) !important;
+  transform: translateY(-1px);
+}
+
+.neumo-result-card:has(.bg-red-600) { --result-status: var(--status-n1); }
+.neumo-result-card:has(.bg-orange-500) { --result-status: var(--status-n2); }
+.neumo-result-card:has(.bg-emerald-600) { --result-status: var(--status-n3); }
+.neumo-result-card:has(.bg-teal-600) { --result-status: var(--status-maintenance); }
+.neumo-result-card:has(.bg-blue-600) { --result-status: var(--status-review); }
+.neumo-result-card:has(.bg-slate-700) { --result-status: #334155; }
+.neumo-result-card:has(.bg-green-950) { --result-status: #052e16; }
+.neumo-result-card:has(.neumo-chip-error) { --result-status: var(--status-n1); }
+
+.neumo-result-card [class*="text-[#315b69]"] {
+  color: var(--workbench-ink-soft) !important;
+}
+
+.neumo-result-card h3 {
+  color: var(--workbench-ink) !important;
+}
+
+.neumo-result-media {
+  background: #f3f4f2 !important;
+  border-color: var(--workbench-line) !important;
+  box-shadow: none !important;
+}
+
+.neumo-photo-frame {
+  background: #dfe2df !important;
+  border: 1px solid var(--workbench-line-strong);
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+.neumo-content-inset {
+  background: #f5f6f4 !important;
+  border-color: var(--workbench-line) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+.neumo-action-card {
+  background: #f5f6f4 !important;
+  border-color: var(--workbench-line) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+/* Priority reference */
 .neumo-legend-item {
-  background: #e6edef !important;
-  border-color: rgba(255, 255, 255, 0.64) !important;
-  box-shadow: 3px 3px 7px rgba(131, 149, 159, 0.16), -3px -3px 7px rgba(255, 255, 255, 0.7) !important;
+  background: var(--workbench-panel-soft) !important;
+  border-color: var(--workbench-line) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  transition: background-color 220ms ease, border-color 220ms ease !important;
 }
 
 .neumo-legend-item:hover {
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--workbench-panel-muted) !important;
+  border-color: var(--workbench-line-strong) !important;
+  box-shadow: none !important;
 }
 
+/* Authentication uses the same workstation language. */
 .neumo-auth-card {
-  background: var(--fv-surface) !important;
-  border-color: rgba(255, 255, 255, 0.7) !important;
-  box-shadow: 16px 16px 36px rgba(118, 139, 151, 0.24), -16px -16px 36px rgba(255, 255, 255, 0.82), inset 1px 1px 0 rgba(255, 255, 255, 0.7) !important;
+  background: var(--workbench-panel) !important;
+  border: 1px solid var(--workbench-line) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 44px rgba(28, 35, 40, 0.1) !important;
 }
 
 .neumo-auth-hero {
-  background: linear-gradient(145deg, #294276 0%, var(--fv-navy) 54%, #172850 100%) !important;
+  background: var(--workbench-graphite) !important;
 }
 
 .neumo-auth-note {
-  background: #e1eaec !important;
-  box-shadow: var(--fv-shadow-inset-soft) !important;
+  background: var(--workbench-panel-muted) !important;
+  border: 1px solid var(--workbench-line) !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+.neumo-auth-card [class*="text-[#087f74]"] {
+  color: var(--workbench-ink-soft) !important;
+}
+
+/* Keep the requested category colors while ensuring readable compact badges. */
+.neumo-result-card .bg-orange-500,
+.neumo-result-card .bg-emerald-600,
+.neumo-result-card .bg-teal-600 {
+  color: #111827 !important;
 }
 
 :where(button, [role="button"]):focus-visible {
-  outline: 2px solid var(--fv-blue) !important;
+  outline: 2px solid var(--workbench-focus) !important;
   outline-offset: 3px;
+}
+
+::selection {
+  background: #d9ddda;
+  color: var(--workbench-ink);
+}
+
+@media (max-width: 1279px) {
+  .neumo-header,
+  .neumo-panel,
+  .neumo-auth-card {
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-shell {
+    background-size: 18px 18px;
+  }
+
+  .neumo-header,
+  .neumo-panel,
+  .neumo-auth-card {
+    border-radius: 9px !important;
+  }
+
+  .neumo-header .neumo-logo-plaque {
+    height: 58px !important;
+    width: 208px !important;
+  }
+
+  .neumo-result-card:hover,
+  .neumo-thumbnail:hover {
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -250,12 +461,5 @@ body,
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-  }
-}
-
-@media (max-width: 639px) {
-  .neumo-panel,
-  .neumo-auth-card {
-    box-shadow: 7px 7px 16px rgba(125, 146, 158, 0.2), -7px -7px 16px rgba(255, 255, 255, 0.82) !important;
   }
 }

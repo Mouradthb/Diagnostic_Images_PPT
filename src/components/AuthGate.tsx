@@ -81,7 +81,7 @@ export function AuthGate() {
           <div className="neumo-logo-plaque mb-5 flex h-[75px] w-[252px] items-center justify-center rounded-xl bg-white px-2 shadow-sm">
             <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
           </div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
+          <p className="section-kicker text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Diagnostic Technique Bâtiment</h1>
           <p className="mt-1 text-sm text-white/65">Accès réservé aux membres de l'équipe</p>
         </div>

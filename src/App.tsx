@@ -266,7 +266,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
               </div>
               <div className="min-w-0 sm:border-l sm:border-white/20 sm:pl-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
+                <p className="section-kicker text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
                 <h1 className="mt-0.5 text-lg font-semibold tracking-tight sm:text-[22px]">Diagnostic Technique Bâtiment</h1>
                 <p className="mt-0.5 hidden text-xs text-white/60 sm:block">Analyse photo unitaire · Grille de hiérarchisation des interventions</p>
               </div>
@@ -283,13 +283,13 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-3.5 xl:grid-cols-[minmax(22rem,0.82fr)_minmax(0,1.35fr)]">
+        <div className="workbench-grid grid min-h-0 flex-1 gap-3.5 xl:grid-cols-[minmax(22rem,0.82fr)_minmax(0,1.35fr)]">
           <aside className="flex min-h-0 flex-col gap-3.5 xl:overflow-y-auto xl:pr-1">
             <section className="neumo-panel rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)] sm:p-6">
               <div className="mb-5 flex items-start gap-3">
                 <div className="neumo-icon neumo-icon-green flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e9f6ed] text-[#147b52]"><Images className="size-5" strokeWidth={1.8} /></div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#147b52]">01 · Préparer l'analyse</p>
+                  <p className="section-kicker text-[10px] font-bold uppercase tracking-[0.16em] text-[#147b52]">01 · Préparer l'analyse</p>
                   <h2 className="mt-0.5 text-lg font-semibold tracking-tight">Photos de visite</h2>
                   <p className="mt-0.5 text-xs leading-relaxed text-[#627781]">Ajoutez les vues à examiner. Chaque photo recevra son propre diagnostic.</p>
                 </div>
@@ -352,7 +352,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
               <div className="flex items-center gap-3">
                 <div className="neumo-icon neumo-icon-blue flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#edf1fc] text-[#3356c9]"><ClipboardCheck className="size-5" strokeWidth={1.8} /></div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3356c9]">02 · Examiner les résultats</p>
+                  <p className="section-kicker text-[10px] font-bold uppercase tracking-[0.16em] text-[#3356c9]">02 · Examiner les résultats</p>
                   <h2 id="results-heading" className="mt-0.5 text-lg font-semibold tracking-tight">Diagnostics</h2>
                 </div>
               </div>
