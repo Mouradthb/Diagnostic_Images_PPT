@@ -259,6 +259,12 @@ button:active:not(:disabled) {
   box-shadow: none !important;
 }
 
+.neumo-priority-badge {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+}
+
 .neumo-chip-success {
   background: var(--fv-green-tint) !important;
   color: var(--fv-green-ink) !important;

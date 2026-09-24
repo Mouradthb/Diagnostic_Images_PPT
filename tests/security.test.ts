@@ -5,6 +5,7 @@ import meRoute from '../api/me';
 import { getMemberKey } from '../api/_lib/auth.js';
 import { analyzePhoto, resolveFallbackModel, validateResult, withGeminiFallback } from '../api/_lib/analyze.js';
 import { HttpError } from '../api/_lib/httpError.js';
+import { getNiveauBadgeStyle } from '../src/utils/fileHelpers.js';
 
 test('the API rejects callers without a verified identity', async () => {
   const analyze = await analyzeRoute.fetch(new Request('http://localhost/api/analyze', {
@@ -53,6 +54,27 @@ test('the deprecated Gemini 2.5 fallback is migrated for new projects', () => {
   assert.equal(resolveFallbackModel(undefined), 'gemini-3.5-flash-lite');
   assert.equal(resolveFallbackModel(' gemini-2.5-flash '), 'gemini-3.5-flash-lite');
   assert.equal(resolveFallbackModel('gemini-3.5-flash'), 'gemini-3.5-flash');
+});
+
+test('the PPPT priority palette keeps its dedicated colors', () => {
+  assert.deepEqual(getNiveauBadgeStyle('Curatif Niveau 3'), {
+    label: 'Curatif Niveau 3',
+    bgClass: 'bg-[#D7F3E1]',
+    textClass: 'text-[#0B3D24]',
+    borderClass: 'border-transparent',
+  });
+  assert.deepEqual(getNiveauBadgeStyle('Entretien'), {
+    label: 'Entretien',
+    bgClass: 'bg-[#E0F2FE]',
+    textClass: 'text-[#0C4A6E]',
+    borderClass: 'border-transparent',
+  });
+  assert.deepEqual(getNiveauBadgeStyle('Signalement hors PPPT à vérifier'), {
+    label: 'Signalement à vérifier',
+    bgClass: 'bg-[#1D315B]',
+    textClass: 'text-white',
+    borderClass: 'border-transparent',
+  });
 });
 
 test('quota and authorization failures never use the fallback model', async () => {

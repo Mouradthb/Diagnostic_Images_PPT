@@ -75,7 +75,7 @@ export function ResultCard({ item, onRetry, disabled }: ResultCardProps) {
         {item.status === 'completed' && item.result && badgeStyle && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`neumo-chip inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${badgeStyle.bgClass} ${badgeStyle.textClass}`}>{badgeStyle.label}</span>
+              <span className={`neumo-priority-badge inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold ${badgeStyle.bgClass} ${badgeStyle.textClass}`}>{badgeStyle.label}</span>
               <span className="neumo-chip neumo-chip-neutral inline-flex items-center gap-1 rounded-full bg-[#edf1fc] px-2.5 py-1 text-[11px] font-medium text-[#2A42FB]"><Info className="size-3.5" /> {statusLabel}</span>
               <span className="neumo-chip rounded-full border border-[#dce6e8] px-2.5 py-1 text-[11px] font-medium text-[#5D6270]">Confiance : {item.result.confiance}</span>
             </div>
