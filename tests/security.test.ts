@@ -131,3 +131,72 @@ test('unknown priorities and malformed concise fields are rejected', () => {
     );
   }
 });
+
+const validPhoto = { imageBase64: '/9j/2w==', mimeType: 'image/jpeg' };
+
+function geminiResponse(diagnostic = conciseDiagnostic): Response {
+  return Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(diagnostic) }] }, finishReason: 'STOP' }] });
+}
+
+test('photos without a declared location keep the original request and JSON response', async (t) => {
+  const requests: any[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push(await new Request(input, init).json());
+    return geminiResponse();
+  });
+  for (const photo of [validPhoto, { ...validPhoto, localisation: 'non renseignée' }]) {
+    assert.deepEqual(await analyzePhoto(photo, 'unused-test-key'), conciseDiagnostic);
+  }
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[0].contents, requests[1].contents);
+  assert.ok(requests[0].contents.flatMap((content: any) => content.parts).some((part: any) => part.inlineData?.data === validPhoto.imageBase64));
+  assert.ok(!JSON.stringify(requests[0].contents).includes('Localisation déclarée'));
+});
+
+test('each photo carries its own declared location in a single Gemini request', async (t) => {
+  const requests: any[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push(await new Request(input, init).json());
+    return geminiResponse();
+  });
+  await analyzePhoto({ ...validPhoto, localisation: 'partie commune' }, 'unused-test-key');
+  await analyzePhoto({ ...validPhoto, localisation: 'partie privative' }, 'unused-test-key');
+  assert.equal(requests.length, 2);
+  assert.match(JSON.stringify(requests[0].contents), /Localisation déclarée.*Parties communes/);
+  assert.match(JSON.stringify(requests[1].contents), /Localisation déclarée.*Parties privatives/);
+  assert.ok(!JSON.stringify(requests[0].contents).includes('Parties privatives'));
+});
+
+test('invalid locations are rejected before consuming any Gemini request', async (t) => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => geminiResponse());
+  for (const localisation of [null, '', 'hall', false, {}, ['partie commune']]) {
+    await assert.rejects(
+      analyzePhoto({ ...validPhoto, localisation }, 'unused-test-key'),
+      (error: unknown) => error instanceof HttpError && error.status === 400
+    );
+  }
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('the fallback preserves photo context and a serious private-to-common risk priority', async (t) => {
+  const requests: { url: string; body: any }[] = [];
+  const seriousDiagnostic = {
+    ...conciseDiagnostic,
+    priorite: 'Curatif Niveau 1',
+    perimetre: 'partie privative',
+    risque: 'Le désordre pourrait affecter un réseau collectif, à vérifier sur site.',
+  };
+  t.mock.method(console, 'error', () => undefined);
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    requests.push({ url: request.url, body: await request.json() });
+    return requests.length === 1
+      ? Response.json({ error: { code: 503, message: 'Unavailable', status: 'UNAVAILABLE' } }, { status: 503 })
+      : geminiResponse(seriousDiagnostic);
+  });
+  assert.deepEqual(await analyzePhoto({ ...validPhoto, localisation: 'partie privative' }, 'unused-test-key'), seriousDiagnostic);
+  assert.equal(requests.length, 2);
+  assert.notEqual(requests[0].url, requests[1].url);
+  assert.deepEqual(requests[0].body.contents, requests[1].body.contents);
+  assert.match(JSON.stringify(requests[1].body.contents), /Localisation déclarée.*Parties privatives/);
+});

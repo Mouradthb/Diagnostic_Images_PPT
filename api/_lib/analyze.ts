@@ -5,6 +5,9 @@ import {
   NIVEAUX_CONFIANCE,
   PERIMETRES_APPARENTS,
   STATUTS_ANALYSE,
+  LOCALISATIONS_PHOTO,
+  LOCALISATION_LABELS,
+  type LocalisationPhoto,
 } from './diagnosticContract.js';
 import { HttpError } from './httpError.js';
 import { SYSTEM_INSTRUCTION } from './prompt.js';
@@ -49,7 +52,7 @@ function isExpectedImage(bytes: Buffer, mimeType: string): boolean {
   return bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP';
 }
 
-function validateImage(body: unknown): { data: string; mimeType: string } {
+function validateImage(body: unknown): { data: string; mimeType: string; localisation: LocalisationPhoto } {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw new HttpError(400, 'Une photo est requise.');
   }
@@ -57,6 +60,12 @@ function validateImage(body: unknown): { data: string; mimeType: string } {
   const { imageBase64, mimeType } = body as Record<string, unknown>;
   if (typeof imageBase64 !== 'string' || typeof mimeType !== 'string' || !ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new HttpError(400, 'Photo invalide. Formats acceptés : JPG, PNG et WEBP.');
+  }
+
+  const declaredLocalisation = (body as Record<string, unknown>).localisation;
+  const localisation = declaredLocalisation === undefined ? 'non renseignée' : declaredLocalisation;
+  if (!isOneOf(localisation, LOCALISATIONS_PHOTO)) {
+    throw new HttpError(400, 'Localisation invalide. Choisissez Parties communes, Parties privatives ou Non renseignée.');
   }
 
   const prefix = /^data:([^;]+);base64,/.exec(imageBase64);
@@ -74,7 +83,7 @@ function validateImage(body: unknown): { data: string; mimeType: string } {
     throw new HttpError(400, 'Photo illisible ou trop volumineuse.');
   }
 
-  return { data, mimeType };
+  return { data, mimeType, localisation: localisation as LocalisationPhoto };
 }
 
 function isOneOf(value: unknown, choices: readonly string[]): value is string {
@@ -210,7 +219,8 @@ function generateWithModel(
   ai: GoogleGenAI,
   model: string,
   data: string,
-  mimeType: string
+  mimeType: string,
+  localisation: LocalisationPhoto
 ) {
   const thinkingConfig: ThinkingConfig | undefined = model.startsWith('gemini-3.')
     ? { thinkingLevel: ThinkingLevel.MINIMAL }
@@ -222,7 +232,8 @@ function generateWithModel(
     model,
     contents: [
       { inlineData: { mimeType, data } },
-      'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.',
+      'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.'
+        + (localisation === 'non renseignée' ? '' : `\nLocalisation déclarée par l'utilisateur pour cette photo : ${LOCALISATION_LABELS[localisation]}.`),
     ],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -236,13 +247,13 @@ function generateWithModel(
 }
 
 export async function analyzePhoto(body: unknown, apiKey: string): Promise<DiagnosticResult> {
-  const { data, mimeType } = validateImage(body);
+  const { data, mimeType, localisation } = validateImage(body);
   const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 60_000 } });
 
   let response;
   try {
     response = await withGeminiFallback(
-      (model) => generateWithModel(ai, model, data, mimeType),
+      (model) => generateWithModel(ai, model, data, mimeType, localisation),
       PRIMARY_MODEL,
       FALLBACK_MODEL,
       (model, error) => logProviderFailure(model, error, apiKey)

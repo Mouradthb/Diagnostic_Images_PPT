@@ -11,10 +11,12 @@ import {
   ScanSearch,
   X,
   LogOut,
+  ChevronDown,
+  RotateCw,
 } from 'lucide-react';
-import { InspectionImageItem, DiagnosticResult } from './types';
+import { InspectionImageItem, DiagnosticResult, LocalisationPhoto, LOCALISATIONS_PHOTO, LOCALISATION_LABELS } from './types';
 import { fileToBase64, formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
-import { AnalysisRequestError, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
+import { AnalysisRequestError, canRestoreCompletedResult, isResultOutdated, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
 import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
 
@@ -28,9 +30,9 @@ const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_ORIGINAL_BYTES = 20_000_000;
 const MAX_REQUEST_BYTES = 4_000_000;
 
-async function requestAnalysis(file: File, getIdToken: () => Promise<string>): Promise<DiagnosticResult> {
+async function requestAnalysis(file: File, getIdToken: () => Promise<string>, localisation: LocalisationPhoto = 'non renseignée'): Promise<DiagnosticResult> {
   const { base64Data, mimeType } = await prepareImageForAnalysis(file);
-  const body = JSON.stringify({ imageBase64: base64Data, mimeType });
+  const body = JSON.stringify({ imageBase64: base64Data, mimeType, localisation });
   if (new Blob([body]).size > MAX_REQUEST_BYTES) {
     throw new Error('Cette photo reste trop volumineuse après compression (limite de 4 Mo).');
   }
@@ -96,10 +98,22 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
       previewUrl: URL.createObjectURL(file),
       fileName: file.name,
       fileSize: file.size,
+      localisation: 'non renseignée',
       status: 'pending',
     }));
 
     setItems((prev) => [...prev, ...newItems]);
+  };
+
+  const handleLocationChange = (id: string, localisation: LocalisationPhoto) => {
+    if (analysisLockRef.current) return;
+    setItems((prev) => prev.map((item) => {
+      if (item.id !== id) return item;
+      if (canRestoreCompletedResult(item, localisation)) {
+        return { ...item, localisation, status: 'completed', errorMessage: undefined };
+      }
+      return { ...item, localisation };
+    }));
   };
 
   // Supprimer une image spécifique
@@ -136,7 +150,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     setIsAnalyzing(true);
     setBatchMessage('');
 
-    // Traitement séquentiel strict : les diagnostics déjà terminés ne sont jamais relancés.
+    // Traitement séquentiel : seuls les diagnostics manquants ou à actualiser sont lancés.
     try {
       for (const [position, i] of remainingIndices.entries()) {
         setCurrentIndex(i);
@@ -147,7 +161,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
         );
 
         try {
-          const data = await requestAnalysis(currentItem.file, getIdToken);
+          const data = await requestAnalysis(currentItem.file, getIdToken, currentItem.localisation);
 
           setItems((prev) =>
             prev.map((it, idx) =>
@@ -156,6 +170,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                     ...it,
                     status: 'completed',
                     result: data,
+                    analyzedLocalisation: currentItem.localisation ?? 'non renseignée',
                     analyzedAt: new Date().toLocaleTimeString(),
                   }
                 : it
@@ -214,7 +229,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     );
 
     try {
-      const data = await requestAnalysis(item.file, getIdToken);
+      const data = await requestAnalysis(item.file, getIdToken, item.localisation);
 
       setItems((prev) =>
         prev.map((it) =>
@@ -223,6 +238,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 ...it,
                 status: 'completed',
                 result: data,
+                analyzedLocalisation: item.localisation ?? 'non renseignée',
                 analyzedAt: new Date().toLocaleTimeString(),
               }
             : it
@@ -248,9 +264,10 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     }
   };
 
-  const completedCount = items.filter((i) => i.status === 'completed').length;
+  const completedCount = items.filter((i) => i.status === 'completed' && !isResultOutdated(i)).length;
   const errorCount = items.filter((i) => i.status === 'error').length;
-  const remainingCount = items.length - completedCount;
+  const outdatedCount = items.filter(isResultOutdated).length;
+  const remainingCount = selectRemainingIndices(items).length;
   const isStarted = items.some((i) => i.status !== 'pending');
   const visibleResults = items.filter((item) => item.status !== 'pending');
 
@@ -320,16 +337,34 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                     <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#19313b]"><Images className="size-4 text-[#087f74]" /> Sélection · {items.length} photo{items.length > 1 ? 's' : ''}</span>
                     {!isAnalyzing && <button type="button" onClick={handleClearAll} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[#a44b4b] hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#a44b4b]"><Trash2 className="size-3.5" /> Tout effacer</button>}
                   </div>
+                  <p className="mb-3 text-[11px] leading-relaxed text-[#627781]">Précisez la localisation de chaque photo si vous la connaissez.</p>
                   {isAnalyzing && currentIndex !== null && <p className="mb-3 text-xs font-medium text-[#087f74]" role="status">Traitement de la photo {currentIndex + 1} sur {items.length}</p>}
                   <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
                     {items.map((item, idx) => (
-                      <div key={item.id} className={`neumo-thumbnail ${currentIndex === idx ? 'is-current' : ''} group relative aspect-square overflow-hidden rounded-xl border bg-[#eef3f4] ${currentIndex === idx ? 'border-[#087f74] ring-2 ring-[#9cd8cf]' : 'border-[#dce6e8]'}`}>
+                      <div key={item.id} className="min-w-0">
+                        <div className={`neumo-thumbnail ${currentIndex === idx ? 'is-current' : ''} group relative aspect-square overflow-hidden rounded-xl border bg-[#eef3f4] ${currentIndex === idx ? 'border-[#087f74] ring-2 ring-[#9cd8cf]' : 'border-[#dce6e8]'}`}>
                         <img src={item.previewUrl} alt={item.fileName} className="size-full object-cover" />
                         {item.status === 'analyzing' && <div className="absolute inset-0 flex items-center justify-center bg-[#17313d]/65 text-white"><Loader2 className="size-6 animate-spin" /></div>}
-                        {item.status === 'completed' && <span className="absolute left-1.5 top-1.5 rounded-full bg-[#087f74] p-1 text-white" title="Terminé"><CheckCircle2 className="size-3.5" /></span>}
+                        {item.status === 'completed' && !isResultOutdated(item) && <span className="absolute left-1.5 top-1.5 rounded-full bg-[#087f74] p-1 text-white" title="Terminé"><CheckCircle2 className="size-3.5" /></span>}
+                        {item.status === 'completed' && isResultOutdated(item) && <span className="absolute left-1.5 top-1.5 rounded-full bg-amber-100 p-1 text-amber-800" title="Localisation modifiée : résultat à actualiser"><RotateCw className="size-3.5" /></span>}
                         {item.status === 'error' && <span className="absolute left-1.5 top-1.5 rounded-full bg-rose-600 p-1 text-white" title="Échec"><CircleAlert className="size-3.5" /></span>}
                         {!isAnalyzing && <button type="button" onClick={() => handleRemoveItem(item.id)} className="absolute right-1.5 top-1.5 rounded-full bg-[#17313d]/85 p-1 text-white transition-colors hover:bg-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={`Retirer ${item.fileName}`} title="Retirer cette photo"><X className="size-3.5" /></button>}
                         <div className="absolute inset-x-0 bottom-0 truncate bg-[#17313d]/85 px-2 py-1.5 text-[10px] text-white" title={`${item.fileName} (${formatFileSize(item.fileSize)})`}>{item.fileName}</div>
+                        </div>
+                        <label htmlFor={`location-${item.id}`} className="mb-1 mt-2 block text-[10px] font-medium text-[#536b75]">Localisation</label>
+                        <div className="relative">
+                          <select
+                            id={`location-${item.id}`}
+                            aria-label={`Localisation de ${item.fileName}`}
+                            value={item.localisation ?? 'non renseignée'}
+                            onChange={(event) => handleLocationChange(item.id, event.target.value as LocalisationPhoto)}
+                            disabled={isAnalyzing}
+                            className="neumo-content-inset min-h-11 w-full min-w-0 appearance-none rounded-lg border border-[#dce6e8] py-2 pl-2 pr-5 text-[10px] text-[#263e48] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3356c9] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {LOCALISATIONS_PHOTO.map((localisation) => <option key={localisation} value={localisation}>{LOCALISATION_LABELS[localisation]}</option>)}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-[#627781]" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -338,7 +373,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
 
               {batchMessage && <p role="alert" className="neumo-alert-warning mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{batchMessage}</p>}
               <div className="neumo-panel-divider mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : remainingCount === 0 ? 'Toutes les photos sont analysées.' : `${remainingCount} photo${remainingCount > 1 ? 's' : ''} à analyser ou réessayer.`}</p>
+                <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : remainingCount === 0 ? 'Toutes les photos sont analysées.' : `${remainingCount} photo${remainingCount > 1 ? 's' : ''} à analyser, actualiser ou réessayer.`}</p>
                 <button type="button" onClick={handleStartAnalysis} disabled={remainingCount === 0 || isAnalyzing} className="neumo-button-primary inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
                   {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> {isStarted ? 'Reprendre l’analyse' : 'Lancer l’analyse'} <ArrowRight className="size-4" /></>}
                 </button>
@@ -360,6 +395,7 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 {isAnalyzing && <span className="neumo-chip neumo-chip-success inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><Loader2 className="size-3 animate-spin" /> En cours</span>}
                 {completedCount > 0 && <span className="neumo-chip neumo-chip-success inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><CheckCircle2 className="size-3" /> {completedCount} terminé{completedCount > 1 ? 's' : ''}</span>}
                 {errorCount > 0 && <span className="neumo-chip neumo-chip-error inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><CircleAlert className="size-3" /> {errorCount} échec{errorCount > 1 ? 's' : ''}</span>}
+                {outdatedCount > 0 && <span className="neumo-chip rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">{outdatedCount} à actualiser</span>}
                 {!isStarted && <span className="neumo-chip rounded-full border border-[#dce6e8] px-2.5 py-1 text-[#71868e]">En attente</span>}
               </div>
             </div>

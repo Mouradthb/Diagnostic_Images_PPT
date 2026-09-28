@@ -6,6 +6,14 @@ Chaque réponse est une **pré-analyse photographique indicative et concise** : 
 
 L'architecture décidée pour moins de 10 membres est détaillée dans [STRATEGIE_VERCEL_HOBBY.md](STRATEGIE_VERCEL_HOBBY.md). Aucun stockage de photos, de diagnostics ou de clés des membres n'est ajouté à l'application.
 
+## Localisation des photos
+
+Sous chaque photo importée, le membre peut choisir **Parties communes**, **Parties privatives** ou **Non renseignée** (par défaut). Ce contexte accompagne la photo dans l'appel d'analyse existant, y compris lors d'un réessai ou du passage au modèle de secours. Le résultat distingue la localisation déclarée du périmètre évalué par Gemini.
+
+Une localisation privative ne diminue pas automatiquement une priorité curative si un risque sérieux visible peut affecter les parties communes, à partir d'indices concrets de la photo. Tout impact collectif incertain doit être vérifié sur site.
+
+Modifier la localisation d'une photo déjà analysée conserve son résultat et le signale comme **à actualiser**. Aucun appel n'est lancé automatiquement : utiliser **Actualiser l'analyse** pour cette photo ou reprendre le lot. Revenir au choix utilisé par le diagnostic retire ce besoin d'actualisation. Les photos, choix et diagnostics restent en mémoire jusqu'au rechargement de la page.
+
 ## Configuration initiale
 
 1. Créer un projet Firebase, enregistrer une application Web et activer le fournisseur de connexion **Google** dans Firebase Authentication.

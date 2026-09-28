@@ -4,6 +4,10 @@ import {
   PERIMETRES_APPARENTS,
   NIVEAUX_CONFIANCE,
 } from '../api/_lib/diagnosticContract.js';
+import type { LocalisationPhoto } from '../api/_lib/diagnosticContract.js';
+
+export type { LocalisationPhoto };
+export { LOCALISATIONS_PHOTO, LOCALISATION_LABELS } from '../api/_lib/diagnosticContract.js';
 
 export {
   DIAGNOSTIC_NIVEAUX,
@@ -36,6 +40,8 @@ export interface InspectionImageItem {
   previewUrl: string;
   fileName: string;
   fileSize: number;
+  localisation?: LocalisationPhoto;
+  analyzedLocalisation?: LocalisationPhoto;
   status: 'pending' | 'analyzing' | 'completed' | 'error';
   result?: DiagnosticResult;
   errorMessage?: string;

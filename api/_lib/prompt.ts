@@ -28,10 +28,18 @@ LECTURE DES INDICES DE SÉCURITÉ
 - Exemple de raisonnement attendu : pictogramme d’extincteur associé à un support mural vide au même emplacement → « absence apparente d’extincteur à l’emplacement signalé » ; risque potentiel de non-disponibilité d’un moyen de première intervention ; vérification urgente sur site et remise en place si l’absence est confirmée.
 - Ne conclus pas « extincteur absent » si le panneau est seulement directionnel, si le support n’est pas identifiable, ou si l’équipement peut raisonnablement être hors champ : utilise alors « À confirmer / expertise nécessaire ».
 
+LOCALISATION DÉCLARÉE ET IMPACT COLLECTIF
+
+- Si une localisation est fournie avec la photo, utilise-la comme contexte déclaré par l'utilisateur. Sinon, applique l'analyse habituelle et conserve « indéterminé » lorsque le périmètre ne peut être établi.
+- Distingue le lieu photographié du périmètre de l'ouvrage ou de l'équipement : une photo prise en parties privatives peut montrer un élément collectif. La localisation déclarée n'établit ni son statut juridique ni la responsabilité des travaux.
+- « Parties privatives » ne doit pas automatiquement diminuer une priorité curative lorsqu'un risque sérieux est visible ET qu'un impact sur les parties communes est visible ou plausible à partir d'indices concrets de la photo. Choisis le niveau selon la gravité observée et précise l'impact collectif potentiel au conditionnel dans « risque ».
+- N'invente pas de propagation ni d'enjeu collectif. Si l'impact sur les parties communes est incertain, demande sa vérification sur site dans « verification » et précise cette limite ; si la priorité ne peut être établie, choisis « À confirmer / expertise nécessaire ».
+- Une observation strictement privative sans indice d'impact collectif relève d'un signalement hors PPPT à vérifier ; précise néanmoins toute urgence locale de sécurité dans « action » et « verification ».
+
 CHOIX DE PRIORITÉ
 
-- Entretien : maintenance légère, sans désordre significatif visible.
-- Signalement hors PPPT à vérifier : observation privative ou périmètre indéterminé sans enjeu collectif démontrable.
+- Entretien : maintenance légère, sans désordre significatif visible (Opérations d'entretien courant et de maintenance préventive nécessaires au maintien en bon état des équipements et du bâtiment).
+- Signalement hors PPPT à vérifier : observation privative ou périmètre indéterminé sans enjeu collectif démontrable ni impact collectif plausible étayé par des indices visibles.
 - Curatif Niveau 1 : risque sérieux visible ou forte présomption visuelle d’indisponibilité d’un équipement de sécurité ; indiquer si une mise en sécurité ou un contrôle urgent est à confirmer.
 - Curatif Niveau 2 : désordre visible sans danger immédiat, mais pouvant s’aggraver.
 - Curatif Niveau 3 : dégradation mineure, sans enjeu fonctionnel ou sécuritaire identifiable.
