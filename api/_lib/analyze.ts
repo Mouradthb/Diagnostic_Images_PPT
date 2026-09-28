@@ -142,35 +142,33 @@ function getProviderStatus(error: unknown): number {
   return 0;
 }
 
-function getProviderCode(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null) return undefined;
+type AnalysisStage = 'provider' | 'response_empty' | 'response_json' | 'response_contract' | 'completed';
+type AnalysisOutcome = 'attempt_failed' | 'success';
 
-  for (const property of ['code', 'status'] as const) {
-    if (property in error && typeof error[property] === 'string') {
-      return error[property].slice(0, 80);
-    }
+function logAnalysisEvent(
+  outcome: AnalysisOutcome,
+  localisation: LocalisationPhoto,
+  stage: AnalysisStage,
+  model?: string,
+  upstreamStatus?: number
+): void {
+  const event = { outcome, localisation, stage, model, upstreamStatus };
+  if (outcome === 'attempt_failed') {
+    console.error('[Gemini] analysis event', event);
+    return;
   }
 
-  return undefined;
+  console.info('[Gemini] analysis event', event);
 }
 
-function safeProviderMessage(error: unknown, apiKey: string): string | undefined {
-  if (!(error instanceof Error) || !error.message) return undefined;
-
-  return error.message
-    .replaceAll(apiKey, '[REDACTED]')
-    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[REDACTED]')
-    .replace(/[\r\n]+/g, ' ')
-    .slice(0, 400);
-}
-
-function logProviderFailure(model: string, error: unknown, apiKey: string): void {
-  console.error('[Gemini] model request failed', {
+function logProviderFailure(localisation: LocalisationPhoto, model: string, error: unknown): void {
+  logAnalysisEvent(
+    'attempt_failed',
+    localisation,
+    'provider',
     model,
-    status: getProviderStatus(error) || undefined,
-    code: getProviderCode(error),
-    message: safeProviderMessage(error, apiKey),
-  });
+    getProviderStatus(error) || undefined
+  );
 }
 
 export async function withGeminiFallback<T>(
@@ -228,12 +226,16 @@ function generateWithModel(
       ? { thinkingBudget: 0 }
       : undefined;
 
+  const localisationContext = localisation === 'non renseignée'
+    ? "Localisation déclarée par l'utilisateur : Non renseignée. Ne déduis pas le périmètre depuis ce seul champ ; utilise « indéterminé » lorsque la photo ne suffit pas."
+    : `Localisation déclarée par l'utilisateur pour cette photo : ${LOCALISATION_LABELS[localisation]}.`;
+
   return ai.models.generateContent({
     model,
     contents: [
       { inlineData: { mimeType, data } },
       'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.'
-        + (localisation === 'non renseignée' ? '' : `\nLocalisation déclarée par l'utilisateur pour cette photo : ${LOCALISATION_LABELS[localisation]}.`),
+        + `\n${localisationContext}`,
     ],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -251,18 +253,23 @@ export async function analyzePhoto(body: unknown, apiKey: string): Promise<Diagn
   const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 60_000 } });
 
   let response;
+  let selectedModel: string | undefined;
   try {
     response = await withGeminiFallback(
-      (model) => generateWithModel(ai, model, data, mimeType, localisation),
+      (model) => {
+        selectedModel = model;
+        return generateWithModel(ai, model, data, mimeType, localisation);
+      },
       PRIMARY_MODEL,
       FALLBACK_MODEL,
-      (model, error) => logProviderFailure(model, error, apiKey)
+      (model, error) => logProviderFailure(localisation, model, error)
     );
   } catch (error) {
     throw providerError(error);
   }
 
   if (!response.text) {
+    logAnalysisEvent('attempt_failed', localisation, 'response_empty', selectedModel);
     throw new HttpError(502, 'Gemini a renvoyé un diagnostic vide.');
   }
 
@@ -270,8 +277,16 @@ export async function analyzePhoto(body: unknown, apiKey: string): Promise<Diagn
   try {
     parsed = JSON.parse(response.text);
   } catch {
+    logAnalysisEvent('attempt_failed', localisation, 'response_json', selectedModel);
     throw new HttpError(502, 'Gemini a renvoyé un diagnostic illisible.');
   }
 
-  return validateResult(parsed);
+  try {
+    const diagnostic = validateResult(parsed);
+    logAnalysisEvent('success', localisation, 'completed', selectedModel);
+    return diagnostic;
+  } catch (error) {
+    logAnalysisEvent('attempt_failed', localisation, 'response_contract', selectedModel);
+    throw error;
+  }
 }

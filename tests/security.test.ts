@@ -138,7 +138,7 @@ function geminiResponse(diagnostic = conciseDiagnostic): Response {
   return Response.json({ candidates: [{ content: { role: 'model', parts: [{ text: JSON.stringify(diagnostic) }] }, finishReason: 'STOP' }] });
 }
 
-test('photos without a declared location keep the original request and JSON response', async (t) => {
+test('photos without a declared location send explicit neutral context and keep the JSON response', async (t) => {
   const requests: any[] = [];
   t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     requests.push(await new Request(input, init).json());
@@ -150,7 +150,10 @@ test('photos without a declared location keep the original request and JSON resp
   assert.equal(requests.length, 2);
   assert.deepEqual(requests[0].contents, requests[1].contents);
   assert.ok(requests[0].contents.flatMap((content: any) => content.parts).some((part: any) => part.inlineData?.data === validPhoto.imageBase64));
-  assert.ok(!JSON.stringify(requests[0].contents).includes('Localisation déclarée'));
+  assert.match(
+    JSON.stringify(requests[0].contents),
+    /Localisation déclarée.*Non renseignée.*Ne déduis pas le périmètre/
+  );
 });
 
 test('each photo carries its own declared location in a single Gemini request', async (t) => {
@@ -176,6 +179,65 @@ test('invalid locations are rejected before consuming any Gemini request', async
     );
   }
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('provider failure telemetry is allowlisted and identifies the declared location', async (t) => {
+  const logs: unknown[][] = [];
+  const apiKey = 'test-secret-gemini-key';
+  t.mock.method(console, 'error', (...args: unknown[]) => {
+    logs.push(args);
+  });
+  t.mock.method(globalThis, 'fetch', async () => Response.json({
+    error: {
+      code: 429,
+      message: `${apiKey} ${validPhoto.imageBase64} provider message that must not be logged`,
+    },
+  }, { status: 429 }));
+
+  await assert.rejects(
+    analyzePhoto({ ...validPhoto, localisation: 'non renseignée' }, apiKey),
+    (error: unknown) => error instanceof HttpError && error.status === 429
+  );
+
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0][0], '[Gemini] analysis event');
+  const event = logs[0][1] as Record<string, unknown>;
+  assert.deepEqual(Object.keys(event).sort(), ['localisation', 'model', 'outcome', 'stage', 'upstreamStatus']);
+  assert.equal(event.outcome, 'attempt_failed');
+  assert.equal(event.localisation, 'non renseignée');
+  assert.equal(event.stage, 'provider');
+  assert.equal(event.upstreamStatus, 429);
+  assert.equal(typeof event.model, 'string');
+  assert.ok(!JSON.stringify(logs).includes(apiKey));
+  assert.ok(!JSON.stringify(logs).includes(validPhoto.imageBase64));
+  assert.ok(!JSON.stringify(logs).includes('provider message that must not be logged'));
+});
+
+test('contract failure telemetry contains no Gemini response content', async (t) => {
+  const logs: unknown[][] = [];
+  const distinctiveResponseText = 'This diagnostic text must not appear in telemetry.';
+  t.mock.method(console, 'error', (...args: unknown[]) => {
+    logs.push(args);
+  });
+  t.mock.method(globalThis, 'fetch', async () => geminiResponse({
+    ...conciseDiagnostic,
+    priorite: 'Invalid priority',
+    constat: distinctiveResponseText,
+  }));
+
+  await assert.rejects(
+    analyzePhoto({ ...validPhoto, localisation: 'non renseignée' }, 'unused-test-key'),
+    (error: unknown) => error instanceof HttpError && error.status === 502
+  );
+
+  assert.equal(logs.length, 1);
+  const event = logs[0][1] as Record<string, unknown>;
+  assert.equal(event.outcome, 'attempt_failed');
+  assert.equal(event.localisation, 'non renseignée');
+  assert.equal(event.stage, 'response_contract');
+  assert.equal(typeof event.model, 'string');
+  assert.ok(!JSON.stringify(logs).includes(distinctiveResponseText));
+  assert.ok(!JSON.stringify(logs).includes(validPhoto.imageBase64));
 });
 
 test('the fallback preserves photo context and a serious private-to-common risk priority', async (t) => {

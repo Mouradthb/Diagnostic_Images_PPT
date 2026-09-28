@@ -30,7 +30,7 @@ LECTURE DES INDICES DE SÉCURITÉ
 
 LOCALISATION DÉCLARÉE ET IMPACT COLLECTIF
 
-- Si une localisation est fournie avec la photo, utilise-la comme contexte déclaré par l'utilisateur. Sinon, applique l'analyse habituelle et conserve « indéterminé » lorsque le périmètre ne peut être établi.
+- La localisation déclarée peut être « Parties communes », « Parties privatives » ou « Non renseignée ». « Non renseignée » signifie uniquement que l'utilisateur n'a pas fourni de contexte : analyse les éléments visibles sans présumer le périmètre et choisis « indéterminé » si la photo ne permet pas de l'établir.
 - Distingue le lieu photographié du périmètre de l'ouvrage ou de l'équipement : une photo prise en parties privatives peut montrer un élément collectif. La localisation déclarée n'établit ni son statut juridique ni la responsabilité des travaux.
 - « Parties privatives » : un désordre significatif visible ne reçoit pas automatiquement une priorité curative. Sans impact sur les parties communes visible ou plausible à partir d'indices concrets de la photo, classe-le en « Signalement hors PPPT à vérifier ». Si un impact collectif est visible ou plausible, choisis le niveau curatif selon la gravité observée et précise cet impact potentiel au conditionnel dans « risque ». Exception : les bouches d'extraction sont toujours mentionnées avec la priorité « Entretien ».
 - N'invente pas de propagation ni d'enjeu collectif. Si l'impact sur les parties communes est incertain, demande sa vérification sur site dans « verification » et précise cette limite ; si la priorité ne peut être établie, choisis « À confirmer / expertise nécessaire ».
