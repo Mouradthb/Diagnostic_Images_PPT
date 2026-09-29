@@ -14,11 +14,12 @@ import {
   ChevronDown,
   RotateCw,
 } from 'lucide-react';
-import { InspectionImageItem, DiagnosticResult, LocalisationPhoto, LOCALISATIONS_PHOTO, LOCALISATION_LABELS } from './types';
-import { formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
+import { InspectionImageItem, DiagnosticResult, DiagnosticNiveau, LocalisationPhoto, LOCALISATIONS_PHOTO, LOCALISATION_LABELS, DIAGNOSTIC_NIVEAUX } from './types';
+import { formatFileSize, getNiveauBadgeStyle, prepareImageForAnalysis } from './utils/fileHelpers';
 import { AnalysisRequestError, batchPauseMessage, canRestoreCompletedResult, isResultOutdated, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
 import { AnalysisCancelledError, AnalysisController } from './utils/analysisControl';
 import { cacheDiagnostic, clearDiagnosticCache, getCachedDiagnostic, makeDiagnosticCacheKey } from './utils/diagnosticCache';
+import { countPriorityResults, filterDisplayedResults } from './utils/resultFilter';
 import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
 
@@ -116,6 +117,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [batchMessage, setBatchMessage] = useState('');
+  const [activePriorityFilter, setActivePriorityFilter] = useState<DiagnosticNiveau | null>(null);
   const [waiting, setWaiting] = useState<{ seconds: number; reason: 'pacing' | 'recovery' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analysisLockRef = useRef(false);
@@ -280,7 +282,12 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const outdatedCount = items.filter(isResultOutdated).length;
   const remainingCount = selectRemainingIndices(items).length;
   const isStarted = items.some((i) => i.status !== 'pending');
-  const visibleResults = items.filter((item) => item.status !== 'pending');
+  const priorityCounts = Object.fromEntries(
+    DIAGNOSTIC_NIVEAUX.map((priority) => [priority, countPriorityResults(items, priority)]),
+  ) as Record<DiagnosticNiveau, number>;
+  const visibleResults = filterDisplayedResults(items, activePriorityFilter);
+  const activePriorityLabel = activePriorityFilter ? getNiveauBadgeStyle(activePriorityFilter).label : null;
+  const visibleDiagnosticCount = visibleResults.filter((item) => item.status === 'completed' && item.result).length;
 
   return (
     <div className="app-shell min-h-[100dvh] p-3 text-[#19313b] sm:p-4 xl:h-[100dvh] xl:overflow-hidden">
@@ -394,7 +401,12 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
               </div>
               {isAnalyzing && <button type="button" onClick={() => operationRef.current?.abort()} className="neumo-button-secondary mt-3 inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-semibold text-[#536b75]">Arrêter l’analyse</button>}
             </section>
-            <LegendBar />
+            <LegendBar
+              activePriority={activePriorityFilter}
+              onPriorityChange={setActivePriorityFilter}
+              priorityCounts={priorityCounts}
+              resultsListId="results-list"
+            />
           </aside>
 
           <section className="neumo-panel flex min-h-[27rem] flex-col overflow-hidden rounded-[20px] border border-[#dce6e8] bg-white shadow-[0_2px_14px_rgba(19,54,65,0.04)] xl:min-h-0" aria-labelledby="results-heading">
@@ -404,6 +416,8 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3356c9]">02 · Examiner les résultats</p>
                   <h2 id="results-heading" className="mt-0.5 text-lg font-semibold tracking-tight">Diagnostics</h2>
+                  {activePriorityLabel && <p className="mt-0.5 text-[11px] font-medium text-[#627781]">Filtre actif : {activePriorityLabel}</p>}
+                  {activePriorityFilter && <p className="sr-only" role="status" aria-live="polite">{visibleDiagnosticCount} diagnostic{visibleDiagnosticCount > 1 ? 's' : ''} affiché{visibleDiagnosticCount > 1 ? 's' : ''} pour ce filtre.</p>}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
@@ -414,9 +428,16 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
                 {!isStarted && <span className="neumo-chip rounded-full border border-[#dce6e8] px-2.5 py-1 text-[#71868e]">En attente</span>}
               </div>
             </div>
-            <div className="neumo-results-scroll min-h-0 flex-1 overflow-y-auto bg-[#fbfdfd] p-4 sm:p-5">
-              {isStarted ? (
+            <div id="results-list" className="neumo-results-scroll min-h-0 flex-1 overflow-y-auto bg-[#fbfdfd] p-4 sm:p-5">
+              {isStarted && visibleResults.length > 0 ? (
                 <div className="space-y-3.5">{visibleResults.map((item) => <ResultCard key={item.id} item={item} onRetry={handleRetrySingle} disabled={isAnalyzing} />)}</div>
+              ) : isStarted && activePriorityFilter ? (
+                <div className="neumo-empty-state flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce6e8] bg-white px-6 py-10 text-center">
+                  <CircleAlert className="mb-4 size-8 text-[#627781]" strokeWidth={1.5} />
+                  <h3 className="text-base font-semibold tracking-tight text-[#19313b]">Aucun diagnostic pour ce niveau</h3>
+                  <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#71868e]">Sélectionnez un autre niveau dans la grille ou réaffichez tous les diagnostics.</p>
+                  <button type="button" onClick={() => setActivePriorityFilter(null)} className="neumo-button-secondary mt-4 rounded-full px-4 py-2 text-xs font-semibold text-[#3356c9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3356c9]">Tout afficher</button>
+                </div>
               ) : (
                 <div className="neumo-empty-state flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce6e8] bg-white px-6 py-10 text-center">
                   <div className="neumo-icon neumo-icon-green relative mb-5 flex size-16 items-center justify-center rounded-2xl bg-[#edf7f5] text-[#087f74]"><ScanSearch className="size-8" strokeWidth={1.5} /><span className="absolute -right-1 -top-1 size-3 rounded-full border-[3px] border-white bg-[#74cbbb]" /></div>

@@ -1,5 +1,5 @@
 import { getNiveauBadgeStyle } from '../utils/fileHelpers';
-import { DiagnosticNiveau } from '../types';
+import type { DiagnosticNiveau } from '../types';
 import { AlertTriangle, CircleHelp, Clock3, Info, Leaf, ShieldAlert, Wrench, type LucideIcon } from 'lucide-react';
 
 const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; icon: LucideIcon; tone: string }[] = [
@@ -54,32 +54,62 @@ const NIVEAUX: { niveau: DiagnosticNiveau; description: string; detail: string; 
   },
 ];
 
-export function LegendBar() {
+interface LegendBarProps {
+  activePriority: DiagnosticNiveau | null;
+  onPriorityChange: (priority: DiagnosticNiveau | null) => void;
+  priorityCounts: Readonly<Record<DiagnosticNiveau, number>>;
+  resultsListId: string;
+}
+
+export function LegendBar({ activePriority, onPriorityChange, priorityCounts, resultsListId }: LegendBarProps) {
   return (
     <section className="neumo-panel rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)]" aria-labelledby="legend-heading">
-      <div className="mb-4">
-        <h2 id="legend-heading" className="text-sm font-semibold text-[#19313b]">Grille interne de priorité</h2>
-        <p className="mt-1 text-[11px] leading-relaxed text-[#71868e]">
-          Loi Climat & Résilience (art. 14-2 loi 1965) • Décret n°2022-663
-        </p>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="legend-heading" className="text-sm font-semibold text-[#19313b]">Grille interne de priorité</h2>
+          <p className="mt-1 text-[11px] leading-relaxed text-[#71868e]">
+            Loi Climat &amp; Résilience (art. 14-2 loi 1965) • Décret n°2022-663
+          </p>
+          <p className="mt-1 text-[11px] leading-relaxed text-[#71868e]">
+            Cliquez sur un niveau pour filtrer les diagnostics.
+          </p>
+        </div>
+        {activePriority && (
+          <button
+            type="button"
+            onClick={() => onPriorityChange(null)}
+            className="neumo-legend-reset rounded-full px-2.5 py-1 text-[10px] font-semibold text-[#3356c9] transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3356c9]"
+          >
+            Tout afficher
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         {NIVEAUX.map((item) => {
           const style = getNiveauBadgeStyle(item.niveau);
           const Icon = item.icon;
+          const isActive = activePriority === item.niveau;
+          const count = priorityCounts[item.niveau];
           return (
-            <div
+            <button
+              type="button"
               key={item.niveau}
-              className="neumo-legend-item min-w-0 rounded-xl border border-[#e3ebed] bg-[#fbfdfd] p-2.5 transition-colors hover:bg-[#f2f8f7]"
+              aria-pressed={isActive}
+              aria-controls={resultsListId}
+              onClick={() => onPriorityChange(isActive ? null : item.niveau)}
+              className={`neumo-legend-item min-w-0 rounded-xl border border-[#e3ebed] bg-[#fbfdfd] p-2.5 text-left transition-colors hover:bg-[#f2f8f7] ${isActive ? 'is-active' : ''}`}
               title={`${item.description} : ${item.detail}`}
             >
               <div className="mb-2 flex items-center justify-between gap-1">
                 <span className={`neumo-icon flex size-7 items-center justify-center rounded-lg ${item.tone}`}><Icon className="size-4" strokeWidth={1.8} /></span>
-                <span className={`size-2 rounded-full ${style.bgClass}`} aria-hidden="true" />
+                <span className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold text-[#627781]" aria-label={`${count} diagnostic${count > 1 ? 's' : ''}`}>{count}</span>
+                  <span className={`size-2 rounded-full ${style.bgClass}`} aria-hidden="true" />
+                </span>
               </div>
               <p className="text-[11px] font-semibold leading-tight text-[#19313b]">{style.label}</p>
               <p className="mt-0.5 text-[10px] leading-tight text-[#71868e]">{item.description}</p>
-            </div>
+            </button>
           );
         })}
       </div>

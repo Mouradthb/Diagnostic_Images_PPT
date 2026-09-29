@@ -222,6 +222,17 @@ body,
   box-shadow: var(--fv-shadow-inset-soft) !important;
 }
 
+.neumo-legend-item.is-active {
+  background: #dbe7f9 !important;
+  border-color: rgba(42, 66, 251, 0.42) !important;
+  box-shadow: var(--fv-shadow-inset-soft), inset 0 0 0 1px rgba(42, 66, 251, 0.2) !important;
+}
+
+.neumo-legend-reset {
+  background: #e6edef;
+  box-shadow: var(--fv-shadow-inset-soft);
+}
+
 .neumo-auth-card {
   background: var(--fv-surface) !important;
   border-color: rgba(255, 255, 255, 0.7) !important;
