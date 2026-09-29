@@ -1,6 +1,6 @@
 import { analyzePhoto } from './_lib/analyze.js';
 import { requireAuthorizedMember } from './_lib/auth.js';
-import { HttpError, publicError } from './_lib/httpError.js';
+import { HttpError, publicError, publicErrorHeaders } from './_lib/httpError.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -13,11 +13,12 @@ export default {
       const body = await request.json().catch(() => {
         throw new HttpError(400, 'Corps de requête JSON invalide.');
       });
-      const result = await analyzePhoto(body, member.apiKey);
+      const result = await analyzePhoto(body, member.apiKey, request.signal);
       return Response.json(result);
     } catch (error) {
       const response = publicError(error);
-      return Response.json({ error: response.error }, { status: response.status });
+      const { status, ...payload } = response;
+      return Response.json(payload, { status, headers: publicErrorHeaders(response) });
     }
   },
 };

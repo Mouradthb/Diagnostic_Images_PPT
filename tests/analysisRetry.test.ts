@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   AnalysisRequestError,
+  batchPauseMessage,
   canRestoreCompletedResult,
   isResultOutdated,
   selectRemainingIndices,
@@ -9,13 +10,39 @@ import {
 } from '../src/utils/analysisRetry.ts';
 
 test('batch pauses for authentication, quota and provider unavailability', () => {
-  for (const status of [401, 403, 429, 503]) {
+  for (const status of [401, 403, 429, 503, 504]) {
     assert.equal(shouldPauseBatch(new AnalysisRequestError('Pause', status)), true);
   }
   for (const status of [400, 413, 502]) {
     assert.equal(shouldPauseBatch(new AnalysisRequestError('Continue', status)), false);
   }
   assert.equal(shouldPauseBatch(new Error('Network error')), false);
+  assert.equal(shouldPauseBatch(new AnalysisRequestError('Timeout', 0, { code: 'client_timeout' })), true);
+  assert.equal(shouldPauseBatch(new AnalysisRequestError('Offline', 0, { code: 'network_error' })), true);
+});
+
+test('retry metadata accepts only known codes and finite positive delays', () => {
+  const confirmed = new AnalysisRequestError('Rate limit', 429, {
+    code: 'rate_limit', retryAfterSeconds: 75, canRetry: true,
+  });
+  assert.equal(confirmed.code, 'rate_limit');
+  assert.equal(confirmed.retryAfterSeconds, 75);
+  assert.equal(confirmed.canRetry, true);
+  const unsafe = new AnalysisRequestError('Failure', 429, {
+    code: 'unexpected-provider-code', retryAfterSeconds: Infinity,
+  });
+  assert.equal(unsafe.code, undefined);
+  assert.equal(unsafe.retryAfterSeconds, undefined);
+  assert.equal(unsafe.canRetry, false);
+});
+
+test('batch pause messages distinguish daily quota, rate limit and unknown quota', () => {
+  assert.match(batchPauseMessage(new AnalysisRequestError('Daily', 429, { code: 'quota_daily' })), /quota journalier/);
+  assert.match(batchPauseMessage(new AnalysisRequestError('Rate', 429, { code: 'rate_limit' })), /limite de débit/);
+  assert.match(batchPauseMessage(new AnalysisRequestError('Unknown', 429, { code: 'quota_unknown' })), /Google AI Studio/);
+  assert.match(batchPauseMessage(new AnalysisRequestError('Timeout', 0, { code: 'client_timeout' })), /durée prévue/);
+  assert.match(batchPauseMessage(new AnalysisRequestError('Offline', 504, { code: 'network_error' })), /connexion interrompue, vérifiez votre connexion/);
+  assert.match(batchPauseMessage(new AnalysisRequestError('Unavailable', 503)), /temporairement indisponible/);
 });
 
 test('a resumed mixed lot includes changed locations while keeping current results', () => {

@@ -1,8 +1,6 @@
 # Stratégie de déploiement : Vercel Hobby et clés Gemini par membre
 
-Statut : architecture retenue et implémentée localement. Ce document reste la référence des choix de mise en œuvre ; aucun déploiement ni test avec de vraies clés de membres n'a encore été effectué.
-
-État au 17 septembre 2026 : interface de connexion Google, vérification Firebase côté API, sélection de clé par `uid`, fonction Vercel et modèle `gemini-3.6-flash` implémentés. Le type-check, le build Vite et les tests locaux de refus d'accès passent. La configuration du projet Firebase, des clés des membres et du projet Vercel reste à faire avec l'administrateur.
+Statut au 28 septembre 2026 : application déployée sur Vercel, connexion Google et clés propres à chaque membre fonctionnelles. La stratégie gratuite reste retenue. Les améliorations de fiabilité ci-dessous n'ajoutent ni facturation ni service externe.
 
 ## Objectif et périmètre
 
@@ -10,7 +8,7 @@ Statut : architecture retenue et implémentée localement. Ce document reste la 
 - Réserver l'analyse des photos aux membres autorisés, connectés avec leur compte Google.
 - Utiliser, pour chaque membre, une clé Gemini issue de **son propre projet Google**. Les limites Gemini sont calculées par projet, pas par clé : plusieurs clés créées dans un même projet ne séparent pas les quotas.
 - Garder les clés exclusivement côté serveur. Un administrateur unique ajoute, remplace ou retire les clés dans les paramètres Vercel.
-- Ne pas ajouter de base de données pour cette première version. Les photos et résultats restent dans l'état du navigateur ; aucun historique partagé ou persistant n'est prévu.
+- Ne pas ajouter de base de données serveur. Les photos restent dans l'état du navigateur. Les diagnostics validés peuvent être conservés localement 24 heures pour éviter une nouvelle analyse après réimportation ; aucun historique partagé, photo persistante ou clé Gemini n'est enregistré.
 - Employer `gemini-3.6-flash` pour l'analyse. Vérifier sa disponibilité et ses limites gratuites dans le projet Google de chaque membre avant l'ouverture du service.
 
 ## Condition d'utilisation de Vercel Hobby
@@ -20,10 +18,19 @@ Le plan Hobby est réservé par Vercel à un usage personnel et non commercial. 
 ## Architecture retenue
 
 1. **Interface** : Vercel sert le build statique Vite de l'application React.
-2. **API** : une Vercel Function côté serveur traite `/api/analyze` et appelle Gemini. Le code Express actuel doit être adapté à ce mode de déploiement ; il n'y a pas de serveur Node permanent à gérer.
+2. **API** : une Vercel Function côté serveur traite `/api/analyze` et appelle Gemini. Express sert uniquement au développement local ; il n'y a pas de serveur Node permanent à gérer en production.
 3. **Authentification** : Firebase Authentication fournit la connexion Google. L'interface transmet un jeton d'identité à l'API par HTTPS. L'API vérifie ce jeton à chaque demande d'analyse et récupère l'identifiant Firebase stable (`uid`).
 4. **Autorisation et sélection de clé** : une variable d'environnement privée Vercel, par exemple `GEMINI_KEYS_BY_UID`, contient une correspondance `uid → clé Gemini` pour les seuls membres autorisés. Une identité vérifiée mais absente de cette correspondance ne peut pas lancer d'analyse. L'identifiant stable évite de dépendre d'une adresse e-mail modifiée.
-5. **Appel Gemini** : pour chaque requête, l'API sélectionne la clé correspondant au `uid` vérifié, crée un client Gemini pour cette clé et appelle uniquement `gemini-3.6-flash`. Elle ne prend jamais une clé envoyée par le navigateur et ne bascule jamais vers la clé de l'administrateur ou celle d'un autre membre.
+5. **Appel Gemini** : pour chaque requête, l'API sélectionne la clé correspondant au `uid` vérifié et appelle le modèle principal configuré. En cas de `503/504`, elle essaie une seule fois le modèle de secours configuré, avec la même clé. Une reprise différée après surcharge ne sollicite que ce secours. Elle ne prend jamais une clé envoyée par le navigateur et ne bascule jamais vers la clé de l'administrateur ou celle d'un autre membre.
+
+## Améliorations de fiabilité gratuites
+
+- Tous les lancements, lots et réessais partagent un délai de 15 secondes après chaque requête. Les onglets du même navigateur peuvent partager ce contrôle grâce à Web Locks et à une petite indication de délai locale. Les appareils distincts restent indépendants.
+- Après l'échec du principal et du secours pour surcharge, une seule reprise côté interface est possible après au moins 30 secondes. Aucun serveur Vercel ne reste ouvert pendant cette attente.
+- Les détails Google permettent de distinguer quota quotidien et débit temporaire. Une limite temporaire reconnue permet une reprise différée unique ; un quota quotidien ou une erreur ambiguë n'entraîne pas de répétition automatique. Un quota quotidien connu bloque les nouveaux appels jusqu'au renouvellement à minuit du Pacifique, avec une minute de marge.
+- Le serveur plafonne l'appel combiné à 55 secondes et chaque modèle à 25 secondes. L'interface plafonne chaque requête à 70 secondes et peut interrompre l'attente ou l'analyse.
+- Une empreinte du contenu de la photo, de sa localisation et de la version de consigne/contrat/modèles permet de réutiliser un résultat validé pour le même `uid`. Le stockage local ne conserve que les diagnostics pendant 24 heures, avec un maximum de 200 entrées. Après rechargement, le membre réimporte ses photos pour les retrouver. **Tout effacer** supprime aussi ces diagnostics du compte.
+- Aucun crédit, paiement, autre fournisseur ou autre clé n'est activé. Ces protections réduisent les tentatives inutiles mais ne créent pas de quota supplémentaire et ne garantissent pas la disponibilité Gemini.
 
 ```text
 Membre → connexion Google → jeton vérifié par l'API Vercel
@@ -54,15 +61,15 @@ Firebase Authentication gère les comptes ; aucune collection Firestore n'est re
 
 Cette gestion est volontairement manuelle. Si les membres doivent un jour saisir et modifier eux-mêmes leur clé dans l'application, il faudra ajouter un stockage persistant adapté pour les clés chiffrées et revoir cette stratégie.
 
-## Changements nécessaires dans le projet actuel
+## Protections en place dans le projet
 
-1. **Déploiement Vercel** : produire le build Vite pour l'interface et exposer `/api/analyze` comme fonction serveur. Conserver le flux d'une photo par appel. Ne pas supposer que la mémoire ou les fichiers locaux d'une fonction persistent entre les appels.
-2. **Connexion et accès** : ajouter la connexion Google, vérifier le jeton côté API et refuser les utilisateurs non configurés. Masquer ou désactiver l'analyse pour un membre sans clé, sans s'appuyer uniquement sur ce contrôle visuel.
-3. **Clé par requête** : retirer le client Gemini global et la lecture de `GEMINI_API_KEY` / `API_KEY` comme clé commune. Choisir la clé à partir du `uid` vérifié lors de chaque appel.
-4. **Modèle** : le serveur essaie actuellement `gemini-3.1-flash-lite` avant `gemini-3.6-flash`, puis d'autres modèles. Fixer le modèle voulu à `gemini-3.6-flash` pour éviter une sélection silencieuse d'un autre modèle. Afficher clairement les erreurs de clé invalide et de quota atteint ; ne pas basculer vers une autre clé.
-5. **Photos** : Vercel limite le corps d'une requête de fonction à 4,5 Mo. Mesurer la taille du JSON **après conversion base64**, compresser davantage si nécessaire, puis refuser proprement une photo encore trop volumineuse. Remplacer la limite Express actuelle de 50 Mo par une limite cohérente avec Vercel. Valider format et taille côté API également.
-6. **Réponse** : valider les trois champs du résultat Gemini côté serveur avant de renvoyer le diagnostic. Limiter les tentatives automatiques afin qu'une erreur ne consomme pas inutilement le quota du membre.
-7. **Préparation du build** : réparer l'environnement local Node/npm et la dépendance native Rollup manquante, puis obtenir un build et une vérification TypeScript réussis avant le déploiement.
+1. **Déploiement Vercel** : build Vite pour l'interface, `/api/analyze` comme fonction serveur et une photo par requête. Aucune persistance n'est supposée dans la mémoire ou les fichiers d'une fonction.
+2. **Connexion et accès** : connexion Google, vérification du jeton côté API et refus des utilisateurs non configurés, indépendamment du contrôle visuel.
+3. **Clé par requête** : clé choisie exclusivement à partir du `uid` vérifié ; aucune clé commune ni clé fournie par le navigateur.
+4. **Modèles** : principal `gemini-3.6-flash` et secours `gemini-3.5-flash-lite`, configurables côté serveur. Le secours reste limité aux erreurs temporaires `503/504` ; les erreurs de quota ou d'accès ne déclenchent jamais de rotation de clé.
+5. **Photos** : compression côté navigateur, mesure du JSON **après conversion base64** et refus au-delà de 4 Mo, sous la limite Vercel de 4,5 Mo. Validation du format, de la signature et de la taille côté API également.
+6. **Réponse** : validation du contrat JSON complet et de sa cohérence côté serveur avant affichage ou conservation locale. Tentatives automatiques bornées et arrêt du lot lors d'une limite persistante.
+7. **Préparation du build** : tests simulés sans appels Gemini, vérification TypeScript et build de production avant livraison. Ne pas partager `node_modules` entre Windows et WSL.
 
 ## Vérifications avant ouverture à l'équipe
 

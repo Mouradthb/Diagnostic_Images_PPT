@@ -14,7 +14,7 @@ export function fileToBase64(file: File): Promise<string> {
 
 /**
  * Optimise une photo de visite technique (redimensionnement intelligent max 1600px, compression JPEG 85%)
- * afin d'éviter les surcharges de bande passante et les erreurs 503 dues aux fichiers trop lourds.
+ * pour réduire le transfert et rester sous la limite de taille des requêtes Vercel.
  */
 export async function prepareImageForAnalysis(
   file: File,

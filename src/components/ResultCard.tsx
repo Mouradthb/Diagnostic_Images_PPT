@@ -47,6 +47,7 @@ export function ResultCard({ item, onRetry, disabled }: ResultCardProps) {
         <p className="mt-2 text-[10px] font-medium text-[#627781]">Localisation déclarée</p>
         <span className="neumo-chip mt-1 inline-block rounded-full px-2 py-1 text-[10px] text-[#3a5660]">{LOCALISATION_LABELS[item.localisation ?? 'non renseignée']}</span>
         {item.analyzedAt && <p className="mt-1 inline-flex items-center gap-1 text-[10px] text-[#71868e]"><Clock3 className="size-3" /> {item.analyzedAt}</p>}
+        {item.reusedResult && !isOutdated && <p className="mt-2 text-[10px] leading-relaxed text-[#087f74]">Diagnostic conservé réutilisé · aucun nouvel appel</p>}
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-4 p-4 sm:p-5">

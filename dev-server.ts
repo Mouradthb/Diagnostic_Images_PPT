@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { analyzePhoto } from './api/_lib/analyze.js';
 import { getMemberKey, requireAuthorizedMember, verifyMember } from './api/_lib/auth.js';
-import { publicError } from './api/_lib/httpError.js';
+import { publicError, publicErrorHeaders } from './api/_lib/httpError.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -33,13 +33,23 @@ async function startServer() {
   });
 
   app.post('/api/analyze', async (request, response) => {
+    const controller = new AbortController();
+    const onDisconnect = () => {
+      if (!response.writableEnded) controller.abort();
+    };
+    request.on('aborted', onDisconnect);
+    response.on('close', onDisconnect);
     try {
       const member = await requireAuthorizedMember(request.get('authorization') ?? null);
-      const result = await analyzePhoto(request.body, member.apiKey);
-      response.json(result);
+      const result = await analyzePhoto(request.body, member.apiKey, controller.signal);
+      if (!controller.signal.aborted) response.json(result);
     } catch (error) {
       const result = publicError(error);
-      response.status(result.status).json({ error: result.error });
+      const { status, ...payload } = result;
+      if (!controller.signal.aborted) response.status(status).set(publicErrorHeaders(result)).json(payload);
+    } finally {
+      request.off('aborted', onDisconnect);
+      response.off('close', onDisconnect);
     }
   });
 

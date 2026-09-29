@@ -15,12 +15,15 @@ import {
   RotateCw,
 } from 'lucide-react';
 import { InspectionImageItem, DiagnosticResult, LocalisationPhoto, LOCALISATIONS_PHOTO, LOCALISATION_LABELS } from './types';
-import { fileToBase64, formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
-import { AnalysisRequestError, canRestoreCompletedResult, isResultOutdated, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
+import { formatFileSize, prepareImageForAnalysis } from './utils/fileHelpers';
+import { AnalysisRequestError, batchPauseMessage, canRestoreCompletedResult, isResultOutdated, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
+import { AnalysisCancelledError, AnalysisController } from './utils/analysisControl';
+import { cacheDiagnostic, clearDiagnosticCache, getCachedDiagnostic, makeDiagnosticCacheKey } from './utils/diagnosticCache';
 import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
 
 interface AppProps {
+  uid: string;
   email: string;
   getIdToken: () => Promise<string>;
   onSignOut: () => Promise<void>;
@@ -30,15 +33,29 @@ const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_ORIGINAL_BYTES = 20_000_000;
 const MAX_REQUEST_BYTES = 4_000_000;
 
-async function requestAnalysis(file: File, getIdToken: () => Promise<string>, localisation: LocalisationPhoto = 'non renseignée'): Promise<DiagnosticResult> {
-  const { base64Data, mimeType } = await prepareImageForAnalysis(file);
-  const body = JSON.stringify({ imageBase64: base64Data, mimeType, localisation });
+interface PreparedPhoto {
+  imageBase64: string;
+  mimeType: string;
+  localisation: LocalisationPhoto;
+}
+
+async function requestAnalysis(
+  photo: PreparedPhoto,
+  getIdToken: () => Promise<string>,
+  signal: AbortSignal,
+  recoveryAttempt: boolean
+): Promise<DiagnosticResult> {
+  if (signal.aborted) throw new AnalysisCancelledError();
+  const body = JSON.stringify({ ...photo, recoveryAttempt });
   if (new Blob([body]).size > MAX_REQUEST_BYTES) {
     throw new Error('Cette photo reste trop volumineuse après compression (limite de 4 Mo).');
   }
 
   const token = await getIdToken();
+  if (signal.aborted) throw new AnalysisCancelledError();
   const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal.addEventListener('abort', cancel, { once: true });
   const timeout = setTimeout(() => controller.abort(), 70_000);
 
   try {
@@ -52,37 +69,64 @@ async function requestAnalysis(file: File, getIdToken: () => Promise<string>, lo
       signal: controller.signal,
     });
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch((error) => {
+      if (controller.signal.aborted) throw error;
+      return {};
+    });
+    if (signal.aborted) throw new AnalysisCancelledError();
     if (!response.ok) {
-      throw new AnalysisRequestError(data.error || `Erreur lors de l'analyse (${response.status}).`, response.status);
+      const retryAfter = Number(response.headers.get('Retry-After'));
+      throw new AnalysisRequestError(data.error || `Erreur lors de l'analyse (${response.status}).`, response.status, {
+        code: data.code,
+        canRetry: data.canRetry === true,
+        retryAfterSeconds: data.retryAfterSeconds ?? (retryAfter > 0 ? retryAfter : undefined),
+      });
     }
     if (!data.statut_analyse || !data.priorite || !data.constat || !data.action || !data.limites) {
       throw new Error('Réponse invalide : champs requis manquants.');
     }
     return data as DiagnosticResult;
   } catch (error) {
+    if (signal.aborted) throw new AnalysisCancelledError();
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('Analyse trop longue. Réessayez cette photo.');
+      throw new AnalysisRequestError('Analyse trop longue. Patientez avant de réessayer cette photo.', 504, {
+        code: 'client_timeout',
+        canRetry: false,
+        retryAfterSeconds: 60,
+      });
+    }
+    if (error instanceof TypeError) {
+      throw new AnalysisRequestError('Connexion interrompue. Vérifiez votre connexion avant de reprendre.', 504, {
+        code: 'network_error',
+        canRetry: false,
+        retryAfterSeconds: 60,
+      });
     }
     throw error;
   } finally {
     clearTimeout(timeout);
+    signal.removeEventListener('abort', cancel);
   }
 }
 
-export default function App({ email, getIdToken, onSignOut }: AppProps) {
+export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const [items, setItems] = useState<InspectionImageItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [batchMessage, setBatchMessage] = useState('');
+  const [waiting, setWaiting] = useState<{ seconds: number; reason: 'pacing' | 'recovery' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analysisLockRef = useRef(false);
+  const operationRef = useRef<AbortController | null>(null);
+  const analysisControllerRef = useRef<AnalysisController | null>(null);
+  if (!analysisControllerRef.current) analysisControllerRef.current = new AnalysisController(uid);
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
   useEffect(() => () => {
+    operationRef.current?.abort();
     itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
   }, []);
 
@@ -136,132 +180,99 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
     setUploadError('');
     setBatchMessage('');
     setCurrentIndex(null);
+    clearDiagnosticCache(uid);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Lancement du traitement séquentiel, image par image
-  const handleStartAnalysis = async () => {
-    const remainingIndices = selectRemainingIndices(items);
-    if (remainingIndices.length === 0 || analysisLockRef.current) return;
+  const analyzeItem = async (item: InspectionImageItem, signal: AbortSignal) => {
+    const localisation = item.localisation ?? 'non renseignée';
+    const cacheKey = await makeDiagnosticCacheKey(item.file, localisation);
+    if (signal.aborted) throw new AnalysisCancelledError();
+    const retained = cacheKey ? getCachedDiagnostic(uid, cacheKey) : null;
+    if (retained) return { result: retained, reused: true };
 
+    const { base64Data, mimeType } = await prepareImageForAnalysis(item.file);
+    if (signal.aborted) throw new AnalysisCancelledError();
+    const photo = { imageBase64: base64Data, mimeType, localisation };
+    let isLocalResult = false;
+    return analysisControllerRef.current!.run(async (recoveryAttempt) => {
+      // Un autre onglet peut avoir terminé cette photo pendant l'attente.
+      const cached = cacheKey ? getCachedDiagnostic(uid, cacheKey) : null;
+      isLocalResult = Boolean(cached);
+      if (cached) return { result: cached, reused: true };
+      const result = await requestAnalysis(photo, getIdToken, signal, recoveryAttempt);
+      if (cacheKey) cacheDiagnostic(uid, cacheKey, result);
+      return { result, reused: false };
+    }, {
+      signal,
+      isLocalResult: () => isLocalResult,
+      onWait: (seconds, reason) => setWaiting(seconds > 0 ? { seconds, reason } : null),
+    });
+  };
+
+  // Le lot et les réessais individuels partagent le même rythme et les mêmes limites.
+  const processItems = async (selectedItems: InspectionImageItem[]) => {
+    if (selectedItems.length === 0 || analysisLockRef.current) return;
+    const operation = new AbortController();
+    operationRef.current = operation;
     analysisLockRef.current = true;
     setIsAnalyzing(true);
     setBatchMessage('');
 
-    // Traitement séquentiel : seuls les diagnostics manquants ou à actualiser sont lancés.
     try {
-      for (const [position, i] of remainingIndices.entries()) {
-        setCurrentIndex(i);
-        const currentItem = items[i];
-
-        setItems((prev) =>
-          prev.map((it, idx) => (idx === i ? { ...it, status: 'analyzing', errorMessage: undefined } : it))
-        );
+      for (const item of selectedItems) {
+        if (operation.signal.aborted) break;
+        setCurrentIndex(itemsRef.current.findIndex((candidate) => candidate.id === item.id));
+        setItems((prev) => prev.map((candidate) => candidate.id === item.id
+          ? { ...candidate, status: 'analyzing', errorMessage: undefined }
+          : candidate));
 
         try {
-          const data = await requestAnalysis(currentItem.file, getIdToken, currentItem.localisation);
-
-          setItems((prev) =>
-            prev.map((it, idx) =>
-              idx === i
-                ? {
-                    ...it,
-                    status: 'completed',
-                    result: data,
-                    analyzedLocalisation: currentItem.localisation ?? 'non renseignée',
-                    analyzedAt: new Date().toLocaleTimeString(),
-                  }
-                : it
-            )
-          );
+          const { result, reused } = await analyzeItem(item, operation.signal);
+          setItems((prev) => prev.map((candidate) => candidate.id === item.id ? {
+            ...candidate,
+            status: 'completed',
+            result,
+            reusedResult: reused,
+            analyzedLocalisation: item.localisation ?? 'non renseignée',
+            analyzedAt: reused ? undefined : new Date().toLocaleTimeString(),
+          } : candidate));
         } catch (error) {
-          console.error(`Erreur d'analyse pour ${currentItem.fileName}:`, error);
-          setItems((prev) =>
-            prev.map((it, idx) =>
-              idx === i
-                ? {
-                    ...it,
-                    status: 'error',
-                    errorMessage: error instanceof Error ? error.message : 'Erreur inconnue lors du traitement de cette photo.',
-                  }
-                : it
-            )
-          );
+          if (error instanceof AnalysisCancelledError || operation.signal.aborted) {
+            setItems((prev) => prev.map((candidate) => candidate.id === item.id
+              ? { ...candidate, status: candidate.result ? 'completed' : 'pending', errorMessage: undefined }
+              : candidate));
+            setBatchMessage('Analyse arrêtée. Les diagnostics obtenus sont conservés.');
+            break;
+          }
 
+          setItems((prev) => prev.map((candidate) => candidate.id === item.id ? {
+            ...candidate,
+            status: 'error',
+            errorMessage: error instanceof Error ? error.message : 'Erreur lors du traitement de cette photo.',
+          } : candidate));
           if (shouldPauseBatch(error)) {
-            setBatchMessage(error instanceof AnalysisRequestError && error.status === 429
-              ? 'Analyse suspendue : la limite Gemini de cette clé est atteinte. Les résultats obtenus sont conservés. Vérifiez le quota dans Google AI Studio avant de reprendre.'
-              : error instanceof AnalysisRequestError && error.status === 503
-                ? 'Analyse suspendue : Gemini reste indisponible après plusieurs tentatives. Les résultats obtenus sont conservés. Réessayez plus tard.'
-                : 'Analyse suspendue : vérifiez votre accès Gemini avant de reprendre. Les résultats obtenus sont conservés.');
+            setBatchMessage(batchPauseMessage(error));
             break;
           }
         }
-
-        // Respecte la limite gratuite de 5 appels/minute : une photo est traitée à la fois.
-        if (position < remainingIndices.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 15_000));
-        }
       }
     } finally {
+      operationRef.current = null;
       analysisLockRef.current = false;
       setIsAnalyzing(false);
       setCurrentIndex(null);
+      setWaiting(null);
     }
   };
 
-  // Réessayer une seule image ayant échoué
-  const handleRetrySingle = async (id: string) => {
-    const item = items.find((i) => i.id === id);
-    if (!item || analysisLockRef.current) return;
+  const handleStartAnalysis = () => processItems(selectRemainingIndices(items).map((index) => items[index]));
 
-    analysisLockRef.current = true;
-    setIsAnalyzing(true);
-    setCurrentIndex(items.findIndex((i) => i.id === id));
-    setBatchMessage('');
-
-    setItems((prev) =>
-      prev.map((it) =>
-        it.id === id ? { ...it, status: 'analyzing', errorMessage: undefined } : it
-      )
-    );
-
-    try {
-      const data = await requestAnalysis(item.file, getIdToken, item.localisation);
-
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === id
-            ? {
-                ...it,
-                status: 'completed',
-                result: data,
-                analyzedLocalisation: item.localisation ?? 'non renseignée',
-                analyzedAt: new Date().toLocaleTimeString(),
-              }
-            : it
-        )
-      );
-    } catch (error) {
-      console.error(`Erreur lors du réessai pour ${item.fileName}:`, error);
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === id
-            ? {
-                ...it,
-                status: 'error',
-                errorMessage: error instanceof Error ? error.message : 'Erreur lors du réessai.',
-              }
-            : it
-        )
-      );
-    } finally {
-      analysisLockRef.current = false;
-      setIsAnalyzing(false);
-      setCurrentIndex(null);
-    }
+  const handleRetrySingle = (id: string) => {
+    const item = items.find((candidate) => candidate.id === id);
+    if (item) return processItems([item]);
   };
 
   const completedCount = items.filter((i) => i.status === 'completed' && !isResultOutdated(i)).length;
@@ -331,6 +342,8 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
                 <span className="neumo-chip mt-3 rounded-full border border-[#d8e8e4] bg-white px-3 py-1 text-[10px] font-medium text-[#637b82]">JPG, PNG, WEBP · 20 Mo max. par photo</span>
               </div>
 
+              <p className="mt-3 text-[11px] leading-relaxed text-[#627781]">Les diagnostics sont conservés 24 h sur ce navigateur. Réimportez les mêmes photos avec la même localisation pour les retrouver sans nouvel appel. Les photos ne sont pas sauvegardées. « Tout effacer » supprime aussi ces diagnostics.</p>
+
               {items.length > 0 && (
                 <div className="neumo-panel-divider mt-5 border-t border-[#e5ecee] pt-4">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -372,12 +385,14 @@ export default function App({ email, getIdToken, onSignOut }: AppProps) {
               )}
 
               {batchMessage && <p role="alert" className="neumo-alert-warning mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{batchMessage}</p>}
+              {waiting && <p role="status" aria-live="polite" className="neumo-auth-note mt-4 rounded-xl p-3 text-xs leading-relaxed text-[#536b75]">{waiting.reason === 'recovery' ? 'Pause temporaire. Reprise automatique' : 'Prochaine tentative'} dans {waiting.seconds} s…</p>}
               <div className="neumo-panel-divider mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : remainingCount === 0 ? 'Toutes les photos sont analysées.' : `${remainingCount} photo${remainingCount > 1 ? 's' : ''} à analyser, actualiser ou réessayer.`}</p>
                 <button type="button" onClick={handleStartAnalysis} disabled={remainingCount === 0 || isAnalyzing} className="neumo-button-primary inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
                   {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> {isStarted ? 'Reprendre l’analyse' : 'Lancer l’analyse'} <ArrowRight className="size-4" /></>}
                 </button>
               </div>
+              {isAnalyzing && <button type="button" onClick={() => operationRef.current?.abort()} className="neumo-button-secondary mt-3 inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-semibold text-[#536b75]">Arrêter l’analyse</button>}
             </section>
             <LegendBar />
           </aside>

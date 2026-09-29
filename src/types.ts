@@ -44,6 +44,7 @@ export interface InspectionImageItem {
   analyzedLocalisation?: LocalisationPhoto;
   status: 'pending' | 'analyzing' | 'completed' | 'error';
   result?: DiagnosticResult;
+  reusedResult?: boolean;
   errorMessage?: string;
   analyzedAt?: string;
 }

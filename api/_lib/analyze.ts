@@ -11,6 +11,7 @@ import {
 } from './diagnosticContract.js';
 import { HttpError } from './httpError.js';
 import { SYSTEM_INSTRUCTION } from './prompt.js';
+import { getProviderStatus, providerError } from './providerFailure.js';
 
 const PRIMARY_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-3.6-flash';
 export function resolveFallbackModel(configuredFallbackModel: string | undefined): string {
@@ -25,6 +26,8 @@ export function resolveFallbackModel(configuredFallbackModel: string | undefined
 const FALLBACK_MODEL = resolveFallbackModel(process.env.GEMINI_FALLBACK_MODEL);
 const MAX_IMAGE_BYTES = 3_000_000;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MODEL_TIMEOUT_MS = 25_000;
+const ANALYSIS_TIMEOUT_MS = 55_000;
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -52,12 +55,16 @@ function isExpectedImage(bytes: Buffer, mimeType: string): boolean {
   return bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP';
 }
 
-function validateImage(body: unknown): { data: string; mimeType: string; localisation: LocalisationPhoto } {
+function validateImage(body: unknown): { data: string; mimeType: string; localisation: LocalisationPhoto; recoveryAttempt: boolean } {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw new HttpError(400, 'Une photo est requise.');
   }
 
   const { imageBase64, mimeType } = body as Record<string, unknown>;
+  const recoveryAttempt = (body as Record<string, unknown>).recoveryAttempt;
+  if (recoveryAttempt !== undefined && typeof recoveryAttempt !== 'boolean') {
+    throw new HttpError(400, 'Option de reprise invalide.');
+  }
   if (typeof imageBase64 !== 'string' || typeof mimeType !== 'string' || !ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new HttpError(400, 'Photo invalide. Formats acceptés : JPG, PNG et WEBP.');
   }
@@ -83,7 +90,7 @@ function validateImage(body: unknown): { data: string; mimeType: string; localis
     throw new HttpError(400, 'Photo illisible ou trop volumineuse.');
   }
 
-  return { data, mimeType, localisation: localisation as LocalisationPhoto };
+  return { data, mimeType, localisation: localisation as LocalisationPhoto, recoveryAttempt: recoveryAttempt === true };
 }
 
 function isOneOf(value: unknown, choices: readonly string[]): value is string {
@@ -129,19 +136,6 @@ export function validateResult(value: unknown): DiagnosticResult {
   return result as unknown as DiagnosticResult;
 }
 
-function getProviderStatus(error: unknown): number {
-  if (typeof error !== 'object' || error === null) return 0;
-
-  for (const property of ['status', 'code'] as const) {
-    if (property in error) {
-      const value = Number(error[property]);
-      if (Number.isFinite(value)) return value;
-    }
-  }
-
-  return 0;
-}
-
 type AnalysisStage = 'provider' | 'response_empty' | 'response_json' | 'response_contract' | 'completed';
 type AnalysisOutcome = 'attempt_failed' | 'success';
 
@@ -175,18 +169,22 @@ export async function withGeminiFallback<T>(
   request: (model: string) => Promise<T>,
   primaryModel: string,
   fallbackModel: string,
-  onFailure: (model: string, error: unknown) => void = () => undefined
+  onFailure: (model: string, error: unknown) => void = () => undefined,
+  signal?: AbortSignal
 ): Promise<T> {
+  signal?.throwIfAborted();
   try {
     return await request(primaryModel);
   } catch (primaryError) {
     onFailure(primaryModel, primaryError);
+    signal?.throwIfAborted();
     const status = getProviderStatus(primaryError);
     if ((status !== 503 && status !== 504) || fallbackModel === primaryModel) {
       throw primaryError;
     }
   }
 
+  signal?.throwIfAborted();
   try {
     return await request(fallbackModel);
   } catch (fallbackError) {
@@ -195,30 +193,13 @@ export async function withGeminiFallback<T>(
   }
 }
 
-function providerError(error: unknown): HttpError {
-  const status = getProviderStatus(error);
-
-  if (status === 401 || status === 403) {
-    return new HttpError(403, "La clé Gemini de ce membre est invalide ou n'a pas accès au modèle.");
-  }
-  if (status === 429) {
-    return new HttpError(429, 'Limite Gemini atteinte pour ce membre (débit ou quota). Réessayez plus tard.');
-  }
-  if (status === 404) {
-    return new HttpError(502, "Le modèle Gemini configuré n'est pas disponible pour cette clé. Contactez l'administrateur.");
-  }
-  if (status === 503 || status === 504) {
-    return new HttpError(503, 'Gemini est temporairement indisponible. Réessayez cette photo plus tard.');
-  }
-  return new HttpError(502, "L'analyse Gemini a échoué. Réessayez cette photo.");
-}
-
-function generateWithModel(
+async function generateWithModel(
   ai: GoogleGenAI,
   model: string,
   data: string,
   mimeType: string,
-  localisation: LocalisationPhoto
+  localisation: LocalisationPhoto,
+  signal: AbortSignal
 ) {
   const thinkingConfig: ThinkingConfig | undefined = model.startsWith('gemini-3.')
     ? { thinkingLevel: ThinkingLevel.MINIMAL }
@@ -230,27 +211,70 @@ function generateWithModel(
     ? "Localisation déclarée par l'utilisateur : Non renseignée. Ne déduis pas le périmètre depuis ce seul champ ; utilise « indéterminé » lorsque la photo ne suffit pas."
     : `Localisation déclarée par l'utilisateur pour cette photo : ${LOCALISATION_LABELS[localisation]}.`;
 
-  return ai.models.generateContent({
-    model,
-    contents: [
-      { inlineData: { mimeType, data } },
-      'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.'
-        + `\n${localisationContext}`,
-    ],
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.15,
-      maxOutputTokens: 800,
-      responseMimeType: 'application/json',
-      responseSchema: RESPONSE_SCHEMA,
-      ...(thinkingConfig ? { thinkingConfig } : {}),
-    },
-  });
+  signal.throwIfAborted();
+  const modelController = new AbortController();
+  let timedOut = false;
+  const onAbort = () => modelController.abort();
+  signal.addEventListener('abort', onAbort, { once: true });
+  const modelTimer = setTimeout(() => {
+    timedOut = true;
+    modelController.abort();
+  }, MODEL_TIMEOUT_MS);
+
+  try {
+    return await ai.models.generateContent({
+      model,
+      contents: [
+        { inlineData: { mimeType, data } },
+        'Analyse cette photo de visite technique conformément aux instructions système strictes et renvoie le diagnostic au format JSON.'
+          + `\n${localisationContext}`,
+      ],
+      config: {
+        abortSignal: modelController.signal,
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: 0.15,
+        maxOutputTokens: 800,
+        responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA,
+        ...(thinkingConfig ? { thinkingConfig } : {}),
+      },
+    });
+  } catch (error) {
+    // A local model deadline is transient, but a caller/total-budget abort must
+    // never start another request. The outer signal gates the fallback.
+    if (timedOut && !signal.aborted) {
+      throw Object.assign(new Error('Gemini model deadline reached'), { status: 504 });
+    }
+    throw error;
+  } finally {
+    clearTimeout(modelTimer);
+    signal.removeEventListener('abort', onAbort);
+  }
 }
 
-export async function analyzePhoto(body: unknown, apiKey: string): Promise<DiagnosticResult> {
-  const { data, mimeType, localisation } = validateImage(body);
-  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 60_000 } });
+export async function analyzePhoto(body: unknown, apiKey: string, callerSignal?: AbortSignal): Promise<DiagnosticResult> {
+  const { data, mimeType, localisation, recoveryAttempt } = validateImage(body);
+  if (callerSignal?.aborted) {
+    throw new HttpError(499, 'Analyse annulée.', { code: 'request_aborted', canRetry: false });
+  }
+  let retryAfterHeader: string | null = null;
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      timeout: MODEL_TIMEOUT_MS,
+      retryOptions: { attempts: 1 },
+      fetch: async (input, init) => {
+        retryAfterHeader = null;
+        const response = await globalThis.fetch(input, init);
+        retryAfterHeader = response.headers.get('Retry-After');
+        return response;
+      },
+    },
+  });
+  const analysisController = new AbortController();
+  const onCallerAbort = () => analysisController.abort();
+  callerSignal?.addEventListener('abort', onCallerAbort, { once: true });
+  const analysisTimer = setTimeout(() => analysisController.abort(), ANALYSIS_TIMEOUT_MS);
 
   let response;
   let selectedModel: string | undefined;
@@ -258,14 +282,24 @@ export async function analyzePhoto(body: unknown, apiKey: string): Promise<Diagn
     response = await withGeminiFallback(
       (model) => {
         selectedModel = model;
-        return generateWithModel(ai, model, data, mimeType, localisation);
+        return generateWithModel(ai, model, data, mimeType, localisation, analysisController.signal);
       },
-      PRIMARY_MODEL,
+      recoveryAttempt ? FALLBACK_MODEL : PRIMARY_MODEL,
       FALLBACK_MODEL,
-      (model, error) => logProviderFailure(localisation, model, error)
+      (model, error) => logProviderFailure(localisation, model, error),
+      analysisController.signal
     );
   } catch (error) {
-    throw providerError(error);
+    if (callerSignal?.aborted) {
+      throw new HttpError(499, 'Analyse annulée.', { code: 'request_aborted', canRetry: false });
+    }
+    if (analysisController.signal.aborted) {
+      throw providerError({ status: 504 });
+    }
+    throw providerError(error, retryAfterHeader);
+  } finally {
+    clearTimeout(analysisTimer);
+    callerSignal?.removeEventListener('abort', onCallerAbort);
   }
 
   if (!response.text) {

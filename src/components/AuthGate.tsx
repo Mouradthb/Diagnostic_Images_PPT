@@ -67,6 +67,8 @@ export function AuthGate() {
   if (state.status === 'authorized' && state.user && auth) {
     return (
       <App
+        key={state.user.uid}
+        uid={state.user.uid}
         email={state.user.email ?? 'Membre connecté'}
         getIdToken={() => state.user!.getIdToken()}
         onSignOut={() => signOut(auth)}

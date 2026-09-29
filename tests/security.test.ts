@@ -4,7 +4,8 @@ import analyzeRoute from '../api/analyze';
 import meRoute from '../api/me';
 import { getMemberKey } from '../api/_lib/auth.js';
 import { analyzePhoto, resolveFallbackModel, validateResult, withGeminiFallback } from '../api/_lib/analyze.js';
-import { HttpError } from '../api/_lib/httpError.js';
+import { HttpError, publicError, publicErrorHeaders } from '../api/_lib/httpError.js';
+import { getProviderStatus, providerError } from '../api/_lib/providerFailure.js';
 
 test('the API rejects callers without a verified identity', async () => {
   const analyze = await analyzeRoute.fetch(new Request('http://localhost/api/analyze', {
@@ -56,7 +57,7 @@ test('the deprecated Gemini 2.5 fallback is migrated for new projects', () => {
 });
 
 test('quota and authorization failures never use the fallback model', async () => {
-  for (const status of [403, 429]) {
+  for (const status of [401, 403, 429]) {
     const models: string[] = [];
     await assert.rejects(
       withGeminiFallback(async (model) => {
@@ -67,6 +68,91 @@ test('quota and authorization failures never use the fallback model', async () =
     );
     assert.deepEqual(models, ['primary']);
   }
+});
+
+function quotaFailure(quotaIds: string[], retryDelay?: string): Record<string, unknown> {
+  return {
+    code: 429,
+    status: 'RESOURCE_EXHAUSTED',
+    details: [
+      {
+        '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+        violations: quotaIds.map((quotaId) => ({
+          quotaId,
+          quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests',
+        })),
+      },
+      ...(retryDelay ? [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay }] : []),
+    ],
+  };
+}
+
+test('daily Google quotas stop even when Google also supplies RetryInfo', () => {
+  const detail = quotaFailure(['GenerateRequestsPerDayPerProjectPerModel-FreeTier'], '12s');
+  for (const error of [detail, { error: detail }, Object.assign(new Error(JSON.stringify({ error: detail })), { status: 429 })]) {
+    const response = publicError(providerError(error, '5'));
+    assert.equal(response.status, 429);
+    assert.equal(response.code, 'quota_daily');
+    assert.equal(response.canRetry, false);
+    assert.equal(response.retryAfterSeconds, undefined);
+    assert.deepEqual(publicErrorHeaders(response), {});
+  }
+});
+
+test('minute request and token quotas respect structured retry delays', () => {
+  for (const quotaId of ['GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'GenerateContentInputTokensPerModelPerMinute']) {
+    const response = publicError(providerError({ error: quotaFailure([quotaId], '8.4s') }, '10'));
+    assert.equal(response.code, 'rate_limit');
+    assert.equal(response.canRetry, true);
+    assert.equal(response.retryAfterSeconds, 10);
+    assert.deepEqual(publicErrorHeaders(response), { 'Retry-After': '10' });
+  }
+  assert.equal(publicError(providerError(quotaFailure(['GenerateRequestsPerMinute']))).retryAfterSeconds, 60);
+});
+
+test('unidentified or mixed quota windows do not trigger automatic retries', () => {
+  for (const error of [
+    { status: 429, message: 'Quota exceeded for this project' },
+    quotaFailure(['unknown-quota'], '5s'),
+    quotaFailure(['GenerateRequestsPerMinute', 'unknown-quota'], '5s'),
+  ]) {
+    const response = publicError(providerError(error, '5'));
+    assert.equal(response.code, 'quota_unknown');
+    assert.equal(response.canRetry, false);
+    assert.equal(response.retryAfterSeconds, undefined);
+  }
+  assert.equal(publicError(providerError(quotaFailure(['GenerateRequestsPerMinute', 'GenerateRequestsPerDay']))).code, 'quota_daily');
+});
+
+test('provider metadata exposes only safe allowlisted fields', () => {
+  const secret = 'private-key-and-provider-message';
+  const error = new HttpError(503, 'Temporary failure', {
+    code: 'provider_unavailable', canRetry: true, retryAfterSeconds: 30,
+    apiKey: secret, rawMessage: secret, photo: secret, uid: secret,
+  } as any);
+  const response = publicError(error);
+  assert.deepEqual(Object.keys(response).sort(), ['canRetry', 'code', 'error', 'retryAfterSeconds', 'status']);
+  assert.ok(!JSON.stringify(response).includes(secret));
+  const unknown = publicError(new HttpError(429, 'Limit', { code: secret, canRetry: true } as any));
+  assert.deepEqual(unknown, { status: 429, error: 'Limit' });
+  for (const status of [503, 504]) {
+    const mapped = publicError(providerError({ status, message: secret }));
+    assert.equal(mapped.code, 'provider_unavailable');
+    assert.equal(mapped.retryAfterSeconds, 30);
+    assert.ok(!JSON.stringify(mapped).includes(secret));
+  }
+  assert.equal(getProviderStatus(new Error(JSON.stringify({ error: { code: 503 } }))), 503);
+});
+
+test('cancellation after a transient error prevents any fallback request', async () => {
+  const controller = new AbortController();
+  const models: string[] = [];
+  await assert.rejects(withGeminiFallback(async (model) => {
+    models.push(model);
+    controller.abort();
+    throw { status: 503 };
+  }, 'primary', 'fallback', undefined, controller.signal), (error: unknown) => error instanceof Error && error.name === 'AbortError');
+  assert.deepEqual(models, ['primary']);
 });
 
 test('the fallback error is preserved when both Gemini models are unavailable', async () => {
@@ -179,6 +265,72 @@ test('invalid locations are rejected before consuming any Gemini request', async
     );
   }
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('recovery calls use only the fixed fallback and reject invalid recovery options', async (t) => {
+  const urls: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    urls.push(new Request(input, init).url);
+    return geminiResponse();
+  });
+  await analyzePhoto({ ...validPhoto, recoveryAttempt: true, model: 'untrusted-model', apiKey: 'untrusted-key' }, 'unused-test-key');
+  assert.equal(urls.length, 1);
+  assert.ok(urls[0].includes(resolveFallbackModel(process.env.GEMINI_FALLBACK_MODEL)));
+  assert.ok(!urls[0].includes('untrusted'));
+  for (const recoveryAttempt of ['true', 1, null, {}, []]) {
+    await assert.rejects(analyzePhoto({ ...validPhoto, recoveryAttempt }, 'unused-test-key'),
+      (error: unknown) => error instanceof HttpError && error.status === 400);
+  }
+  assert.equal(urls.length, 1);
+});
+
+test('an aborted request spends no Gemini call', async (t) => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => geminiResponse());
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(analyzePhoto(validPhoto, 'unused-test-key', controller.signal),
+    (error: unknown) => error instanceof HttpError && error.metadata?.code === 'request_aborted');
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test('Retry-After from the provider survives SDK error wrapping safely', async (t) => {
+  t.mock.method(console, 'error', () => undefined);
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => Response.json({
+    error: quotaFailure(['GenerateRequestsPerMinute'], '3s'),
+  }, { status: 429, headers: { 'Retry-After': '7' } }));
+  await assert.rejects(analyzePhoto(validPhoto, 'unused-test-key'), (error: unknown) => {
+    if (!(error instanceof HttpError)) return false;
+    assert.equal(error.metadata?.code, 'rate_limit');
+    assert.equal(error.metadata?.retryAfterSeconds, 7);
+    return true;
+  });
+  assert.equal(fetchMock.mock.callCount(), 1);
+});
+
+test('model deadlines bound both provider attempts and propagate SDK abort signals', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(console, 'error', () => undefined);
+  const requests: Request[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    return new Promise<Response>((_resolve, reject) => {
+      request.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+    });
+  });
+  const pending = analyzePhoto(validPhoto, 'unused-test-key');
+  const failure = assert.rejects(pending, (error: unknown) => error instanceof HttpError && error.metadata?.code === 'provider_unavailable');
+  // SDK parameter/header conversion is asynchronous, but no real network is used.
+  for (let i = 0; i < 50 && requests.length < 1; i++) await Promise.resolve();
+  assert.equal(requests.length, 1);
+  t.mock.timers.tick(25_000);
+  for (let i = 0; i < 50 && requests.length < 2; i++) await Promise.resolve();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].signal.aborted, true);
+  t.mock.timers.tick(25_000);
+  await failure;
+  assert.equal(requests[1].signal.aborted, true);
+  assert.ok(requests.every((request) => request.headers.get('x-server-timeout') === '25'));
 });
 
 test('provider failure telemetry is allowlisted and identifies the declared location', async (t) => {
