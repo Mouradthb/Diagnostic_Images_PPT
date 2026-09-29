@@ -1,27 +1,39 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
-  CheckCircle2,
-  CircleAlert,
-  ClipboardCheck,
-  Images,
   ImagePlus,
-  Trash2,
   Loader2,
-  ScanSearch,
+  Trash2,
   X,
-  LogOut,
-  ChevronDown,
-  RotateCw,
 } from 'lucide-react';
-import { InspectionImageItem, DiagnosticResult, DiagnosticNiveau, LocalisationPhoto, LOCALISATIONS_PHOTO, LOCALISATION_LABELS, DIAGNOSTIC_NIVEAUX } from './types';
-import { formatFileSize, getNiveauBadgeStyle, prepareImageForAnalysis } from './utils/fileHelpers';
-import { AnalysisRequestError, batchPauseMessage, canRestoreCompletedResult, isResultOutdated, selectRemainingIndices, shouldPauseBatch } from './utils/analysisRetry';
+import {
+  DIAGNOSTIC_NIVEAUX,
+  LOCALISATIONS_PHOTO,
+  LOCALISATION_LABELS,
+  type DiagnosticNiveau,
+  type DiagnosticResult,
+  type InspectionImageItem,
+  type LocalisationPhoto,
+} from './types';
+import { getNiveauBadgeStyle, prepareImageForAnalysis } from './utils/fileHelpers';
+import {
+  AnalysisRequestError,
+  batchPauseMessage,
+  canRestoreCompletedResult,
+  isResultOutdated,
+  selectRemainingIndices,
+  shouldPauseBatch,
+} from './utils/analysisRetry';
 import { AnalysisCancelledError, AnalysisController } from './utils/analysisControl';
-import { cacheDiagnostic, clearDiagnosticCache, getCachedDiagnostic, makeDiagnosticCacheKey } from './utils/diagnosticCache';
+import {
+  cacheDiagnostic,
+  clearDiagnosticCache,
+  getCachedDiagnostic,
+  makeDiagnosticCacheKey,
+} from './utils/diagnosticCache';
 import { countPriorityResults, filterDisplayedResults } from './utils/resultFilter';
-import { ResultCard } from './components/ResultCard';
 import { LegendBar } from './components/LegendBar';
+import { ResultCard } from './components/ResultCard';
 
 interface AppProps {
   uid: string;
@@ -44,7 +56,7 @@ async function requestAnalysis(
   photo: PreparedPhoto,
   getIdToken: () => Promise<string>,
   signal: AbortSignal,
-  recoveryAttempt: boolean
+  recoveryAttempt: boolean,
 ): Promise<DiagnosticResult> {
   if (signal.aborted) throw new AnalysisCancelledError();
   const body = JSON.stringify({ ...photo, recoveryAttempt });
@@ -64,7 +76,7 @@ async function requestAnalysis(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: 'Bearer ' + token,
       },
       body,
       signal: controller.signal,
@@ -77,11 +89,15 @@ async function requestAnalysis(
     if (signal.aborted) throw new AnalysisCancelledError();
     if (!response.ok) {
       const retryAfter = Number(response.headers.get('Retry-After'));
-      throw new AnalysisRequestError(data.error || `Erreur lors de l'analyse (${response.status}).`, response.status, {
-        code: data.code,
-        canRetry: data.canRetry === true,
-        retryAfterSeconds: data.retryAfterSeconds ?? (retryAfter > 0 ? retryAfter : undefined),
-      });
+      throw new AnalysisRequestError(
+        data.error || ('Erreur lors de l’analyse (' + response.status + ').'),
+        response.status,
+        {
+          code: data.code,
+          canRetry: data.canRetry === true,
+          retryAfterSeconds: data.retryAfterSeconds ?? (retryAfter > 0 ? retryAfter : undefined),
+        },
+      );
     }
     if (!data.statut_analyse || !data.priorite || !data.constat || !data.action || !data.limites) {
       throw new Error('Réponse invalide : champs requis manquants.');
@@ -132,10 +148,15 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
   }, []);
 
-  // Ajouter des fichiers sélectionnés
   const handleAddFiles = (fileList: FileList | File[]) => {
-    const filesArray = Array.from(fileList).filter((file) => ACCEPTED_TYPES.has(file.type) && file.size <= MAX_ORIGINAL_BYTES);
-    setUploadError(filesArray.length === fileList.length ? '' : 'Certains fichiers ont été ignorés : seuls JPG, PNG et WEBP de 20 Mo maximum sont acceptés.');
+    const filesArray = Array.from(fileList).filter(
+      (file) => ACCEPTED_TYPES.has(file.type) && file.size <= MAX_ORIGINAL_BYTES,
+    );
+    setUploadError(
+      filesArray.length === fileList.length
+        ? ''
+        : 'Certains fichiers ont été ignorés : seuls JPG, PNG et WEBP de 20 Mo maximum sont acceptés.',
+    );
     if (filesArray.length === 0) return;
 
     const newItems: InspectionImageItem[] = filesArray.map((file) => ({
@@ -148,12 +169,12 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
       status: 'pending',
     }));
 
-    setItems((prev) => [...prev, ...newItems]);
+    setItems((previous) => [...previous, ...newItems]);
   };
 
   const handleLocationChange = (id: string, localisation: LocalisationPhoto) => {
     if (analysisLockRef.current) return;
-    setItems((prev) => prev.map((item) => {
+    setItems((previous) => previous.map((item) => {
       if (item.id !== id) return item;
       if (canRestoreCompletedResult(item, localisation)) {
         return { ...item, localisation, status: 'completed', errorMessage: undefined };
@@ -162,19 +183,15 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     }));
   };
 
-  // Supprimer une image spécifique
   const handleRemoveItem = (id: string) => {
     if (isAnalyzing) return;
-    setItems((prev) => {
-      const item = prev.find((i) => i.id === id);
-      if (item) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
-      return prev.filter((i) => i.id !== id);
+    setItems((previous) => {
+      const item = previous.find((candidate) => candidate.id === id);
+      if (item) URL.revokeObjectURL(item.previewUrl);
+      return previous.filter((candidate) => candidate.id !== id);
     });
   };
 
-  // Tout effacer
   const handleClearAll = () => {
     if (isAnalyzing) return;
     items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
@@ -183,9 +200,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     setBatchMessage('');
     setCurrentIndex(null);
     clearDiagnosticCache(uid);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const analyzeItem = async (item: InspectionImageItem, signal: AbortSignal) => {
@@ -199,8 +214,8 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     if (signal.aborted) throw new AnalysisCancelledError();
     const photo = { imageBase64: base64Data, mimeType, localisation };
     let isLocalResult = false;
+
     return analysisControllerRef.current!.run(async (recoveryAttempt) => {
-      // Un autre onglet peut avoir terminé cette photo pendant l'attente.
       const cached = cacheKey ? getCachedDiagnostic(uid, cacheKey) : null;
       isLocalResult = Boolean(cached);
       if (cached) return { result: cached, reused: true };
@@ -214,7 +229,6 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     });
   };
 
-  // Le lot et les réessais individuels partagent le même rythme et les mêmes limites.
   const processItems = async (selectedItems: InspectionImageItem[]) => {
     if (selectedItems.length === 0 || analysisLockRef.current) return;
     const operation = new AbortController();
@@ -227,34 +241,46 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
       for (const item of selectedItems) {
         if (operation.signal.aborted) break;
         setCurrentIndex(itemsRef.current.findIndex((candidate) => candidate.id === item.id));
-        setItems((prev) => prev.map((candidate) => candidate.id === item.id
-          ? { ...candidate, status: 'analyzing', errorMessage: undefined }
-          : candidate));
+        setItems((previous) => previous.map((candidate) => (
+          candidate.id === item.id
+            ? { ...candidate, status: 'analyzing', errorMessage: undefined }
+            : candidate
+        )));
 
         try {
           const { result, reused } = await analyzeItem(item, operation.signal);
-          setItems((prev) => prev.map((candidate) => candidate.id === item.id ? {
-            ...candidate,
-            status: 'completed',
-            result,
-            reusedResult: reused,
-            analyzedLocalisation: item.localisation ?? 'non renseignée',
-            analyzedAt: reused ? undefined : new Date().toLocaleTimeString(),
-          } : candidate));
+          setItems((previous) => previous.map((candidate) => (
+            candidate.id === item.id
+              ? {
+                ...candidate,
+                status: 'completed',
+                result,
+                reusedResult: reused,
+                analyzedLocalisation: item.localisation ?? 'non renseignée',
+                analyzedAt: reused ? undefined : new Date().toLocaleTimeString(),
+              }
+              : candidate
+          )));
         } catch (error) {
           if (error instanceof AnalysisCancelledError || operation.signal.aborted) {
-            setItems((prev) => prev.map((candidate) => candidate.id === item.id
-              ? { ...candidate, status: candidate.result ? 'completed' : 'pending', errorMessage: undefined }
-              : candidate));
+            setItems((previous) => previous.map((candidate) => (
+              candidate.id === item.id
+                ? { ...candidate, status: candidate.result ? 'completed' : 'pending', errorMessage: undefined }
+                : candidate
+            )));
             setBatchMessage('Analyse arrêtée. Les diagnostics obtenus sont conservés.');
             break;
           }
 
-          setItems((prev) => prev.map((candidate) => candidate.id === item.id ? {
-            ...candidate,
-            status: 'error',
-            errorMessage: error instanceof Error ? error.message : 'Erreur lors du traitement de cette photo.',
-          } : candidate));
+          setItems((previous) => previous.map((candidate) => (
+            candidate.id === item.id
+              ? {
+                ...candidate,
+                status: 'error',
+                errorMessage: error instanceof Error ? error.message : 'Erreur lors du traitement de cette photo.',
+              }
+              : candidate
+          )));
           if (shouldPauseBatch(error)) {
             setBatchMessage(batchPauseMessage(error));
             break;
@@ -270,137 +296,213 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     }
   };
 
-  const handleStartAnalysis = () => processItems(selectRemainingIndices(items).map((index) => items[index]));
+  const handleStartAnalysis = () => processItems(
+    selectRemainingIndices(items).map((index) => items[index]),
+  );
 
   const handleRetrySingle = (id: string) => {
     const item = items.find((candidate) => candidate.id === id);
     if (item) return processItems([item]);
   };
 
-  const completedCount = items.filter((i) => i.status === 'completed' && !isResultOutdated(i)).length;
-  const errorCount = items.filter((i) => i.status === 'error').length;
+  const completedCount = items.filter(
+    (item) => item.status === 'completed' && !isResultOutdated(item),
+  ).length;
+  const errorCount = items.filter((item) => item.status === 'error').length;
   const outdatedCount = items.filter(isResultOutdated).length;
   const remainingCount = selectRemainingIndices(items).length;
-  const isStarted = items.some((i) => i.status !== 'pending');
+  const isStarted = items.some((item) => item.status !== 'pending');
   const priorityCounts = Object.fromEntries(
     DIAGNOSTIC_NIVEAUX.map((priority) => [priority, countPriorityResults(items, priority)]),
   ) as Record<DiagnosticNiveau, number>;
   const visibleResults = filterDisplayedResults(items, activePriorityFilter);
-  const activePriorityLabel = activePriorityFilter ? getNiveauBadgeStyle(activePriorityFilter).label : null;
-  const visibleDiagnosticCount = visibleResults.filter((item) => item.status === 'completed' && item.result).length;
+  const activePriorityLabel = activePriorityFilter
+    ? getNiveauBadgeStyle(activePriorityFilter).label
+    : null;
+  const visibleDiagnosticCount = visibleResults.filter(
+    (item) => item.status === 'completed' && item.result,
+  ).length;
+
+  const remainingText = remainingCount === 0
+    ? 'Toutes les photos sont analysées.'
+    : remainingCount + ' photo' + (remainingCount > 1 ? 's' : '') + ' à analyser, actualiser ou réessayer.';
 
   return (
-    <div className="app-shell min-h-[100dvh] p-3 text-[#19313b] sm:p-4 xl:h-[100dvh] xl:overflow-hidden">
-      <div className="mx-auto flex max-w-[1640px] flex-col gap-3.5 xl:h-full">
-        <header className="neumo-header relative shrink-0 overflow-hidden rounded-[22px] bg-[#1d315b] px-5 py-4 text-white shadow-[0_12px_32px_-22px_rgba(25,47,90,0.65)] sm:px-6">
-          <div className="pointer-events-none absolute -right-10 -top-24 h-52 w-52 rounded-full border border-white/10 sm:right-28" aria-hidden="true" />
-          <div className="pointer-events-none absolute -right-2 -top-16 h-52 w-52 rounded-full border border-white/10 sm:right-36" aria-hidden="true" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-col items-start gap-3.5 sm:flex-row sm:items-center sm:gap-5">
-              <div className="neumo-logo-plaque flex h-[75px] w-[252px] shrink-0 items-center justify-center rounded-xl bg-white px-2 shadow-sm">
-                <img src="/france-verte-logo.png" alt="France Verte" className="h-auto w-full object-contain" />
-              </div>
-              <div className="min-w-0 sm:border-l sm:border-white/20 sm:pl-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#b8e7ca]">Espace de diagnostic · PPPT</p>
-                <h1 className="mt-0.5 text-lg font-semibold tracking-tight sm:text-[22px]">Diagnostic Technique Bâtiment</h1>
-                <p className="mt-0.5 hidden text-xs text-white/60 sm:block">Analyse photo unitaire · Grille de hiérarchisation des interventions</p>
-              </div>
+    <div className="fv-app-shell">
+      <div className="fv-workspace">
+        <header className="fv-topbar">
+          <div className="fv-brand">
+            <img
+              src="/france-verte-logo.png"
+              alt="France Verte — Bureau d'études fluides et thermiques"
+              className="fv-brand-logo"
+            />
+          </div>
+
+          <div className="fv-topbar-title">
+            <p className="fv-eyebrow">Espace de diagnostic — PPPT</p>
+            <h1>Diagnostic Technique Bâtiment</h1>
+            <p className="fv-topbar-subtitle">Analyse photo unitaire · Grille de hiérarchisation des interventions</p>
+          </div>
+
+          <div className="fv-account">
+            <div className="fv-account-copy">
+              <p className="fv-account-label">Compte connecté</p>
+              <a className="fv-account-email" href={'mailto:' + email} title={email}>{email}</a>
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3 sm:justify-end sm:border-0 sm:pt-0">
-              <div className="neumo-account min-w-0 text-right">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Compte connecté</p>
-                <p className="max-w-48 truncate text-xs font-medium text-white/90" title={email}>{email}</p>
-              </div>
-              <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="neumo-icon-button inline-flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40" title="Déconnexion" aria-label="Déconnexion">
-                <LogOut className="size-4" />
-              </button>
-            </div>
+            <button type="button" onClick={() => void onSignOut()} disabled={isAnalyzing} className="fv-signout">
+              Déconnexion
+            </button>
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-3.5 xl:grid-cols-[minmax(22rem,0.82fr)_minmax(0,1.35fr)]">
-          <aside className="flex min-h-0 flex-col gap-3.5 xl:overflow-y-auto xl:pr-1">
-            <section className="neumo-panel rounded-[20px] border border-[#dce6e8] bg-white p-5 shadow-[0_2px_14px_rgba(19,54,65,0.04)] sm:p-6">
-              <div className="mb-5 flex items-start gap-3">
-                <div className="neumo-icon neumo-icon-green flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e9f6ed] text-[#147b52]"><Images className="size-5" strokeWidth={1.8} /></div>
+        <main className="fv-layout">
+          <aside className="fv-sidebar">
+            <section className="fv-upload-section" aria-labelledby="import-heading">
+              <div className="fv-step-heading">
+                <span className="fv-step-number fv-step-number--green" aria-hidden="true">01</span>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#147b52]">01 · Préparer l'analyse</p>
-                  <h2 className="mt-0.5 text-lg font-semibold tracking-tight">Photos de visite</h2>
-                  <p className="mt-0.5 text-xs leading-relaxed text-[#627781]">Ajoutez les vues à examiner. Chaque photo recevra son propre diagnostic.</p>
+                  <p className="fv-step-label">Étape</p>
+                  <h2 id="import-heading" className="fv-step-title">Importer les photos</h2>
                 </div>
               </div>
 
-              {uploadError && <p role="alert" className="neumo-error-card mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{uploadError}</p>}
+              {uploadError && <p role="alert" className="fv-upload-error">{uploadError}</p>}
               <div
-                onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true); }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (!isAnalyzing) setIsDragging(true);
+                }}
                 onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (!isAnalyzing && e.dataTransfer.files) handleAddFiles(e.dataTransfer.files); }}
-                onClick={() => { if (!isAnalyzing) fileInputRef.current?.click(); }}
-                onKeyDown={(event) => { if (!isAnalyzing && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); fileInputRef.current?.click(); } }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setIsDragging(false);
+                  if (!isAnalyzing && event.dataTransfer.files) handleAddFiles(event.dataTransfer.files);
+                }}
+                onClick={() => {
+                  if (!isAnalyzing) fileInputRef.current?.click();
+                }}
+                onKeyDown={(event) => {
+                  if (!isAnalyzing && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
                 role="button"
                 tabIndex={isAnalyzing ? -1 : 0}
                 aria-disabled={isAnalyzing}
-                className={`neumo-dropzone ${isDragging ? 'is-dragging' : ''} group flex cursor-pointer flex-col items-center rounded-2xl border border-dashed px-5 py-7 text-center transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] sm:py-8 ${isDragging ? 'border-[#147b52] bg-[#e9f6ed] ring-4 ring-[#dcefe3]' : 'border-[#a5cbb7] bg-[#f5faf7] hover:border-[#147b52] hover:bg-[#edf7f0]'} ${isAnalyzing ? 'cursor-not-allowed opacity-55' : ''}`}
+                className={'fv-dropzone' + (isDragging ? ' is-dragging' : '') + (isAnalyzing ? ' is-disabled' : '')}
               >
-                <input ref={fileInputRef} type="file" multiple accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { if (e.target.files) handleAddFiles(e.target.files); e.target.value = ''; }} disabled={isAnalyzing} />
-                <span className="neumo-icon neumo-icon-green mb-3 flex size-12 items-center justify-center rounded-2xl bg-white text-[#147b52] shadow-[0_4px_14px_rgba(25,96,61,0.1)] transition-transform group-hover:-translate-y-0.5"><ImagePlus className="size-6" strokeWidth={1.7} /></span>
-                <span className="text-sm font-semibold text-[#19313b]">Choisir des photos</span>
-                <span className="mt-1 text-xs text-[#637b82]">ou glisser-déposer des images ici</span>
-                <span className="neumo-chip mt-3 rounded-full border border-[#d8e8e4] bg-white px-3 py-1 text-[10px] font-medium text-[#637b82]">JPG, PNG, WEBP · 20 Mo max. par photo</span>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(event) => {
+                    if (event.target.files) handleAddFiles(event.target.files);
+                    event.target.value = '';
+                  }}
+                  disabled={isAnalyzing}
+                />
+                <span className="fv-upload-plus"><ImagePlus className="size-6" strokeWidth={1.7} /></span>
+                <span className="fv-dropzone-title">Choisir des photos ou glisser-déposer</span>
+                <span className="fv-dropzone-caption">JPG · PNG · WEBP — 20 Mo max. par photo</span>
               </div>
 
-              <p className="mt-3 text-[11px] leading-relaxed text-[#627781]">Les diagnostics sont conservés 24 h sur ce navigateur. Réimportez les mêmes photos avec la même localisation pour les retrouver sans nouvel appel. Les photos ne sont pas sauvegardées. « Tout effacer » supprime aussi ces diagnostics.</p>
+              <p className="fv-retention-note">Les diagnostics sont conservés 24 h avant suppression automatique.</p>
 
               {items.length > 0 && (
-                <div className="neumo-panel-divider mt-5 border-t border-[#e5ecee] pt-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#19313b]"><Images className="size-4 text-[#087f74]" /> Sélection · {items.length} photo{items.length > 1 ? 's' : ''}</span>
-                    {!isAnalyzing && <button type="button" onClick={handleClearAll} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-[#a44b4b] hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#a44b4b]"><Trash2 className="size-3.5" /> Tout effacer</button>}
+                <section className="fv-selection" aria-labelledby="selection-heading">
+                  <div className="fv-selection-head">
+                    <p id="selection-heading" className="fv-section-kicker">
+                      Sélection — <strong>{items.length} photo{items.length > 1 ? 's' : ''}</strong>
+                    </p>
+                    {!isAnalyzing && (
+                      <button type="button" onClick={handleClearAll} className="fv-text-button">
+                        <Trash2 className="sr-only" /> Tout effacer
+                      </button>
+                    )}
                   </div>
-                  <p className="mb-3 text-[11px] leading-relaxed text-[#627781]">Précisez la localisation de chaque photo si vous la connaissez.</p>
-                  {isAnalyzing && currentIndex !== null && <p className="mb-3 text-xs font-medium text-[#087f74]" role="status">Traitement de la photo {currentIndex + 1} sur {items.length}</p>}
-                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
-                    {items.map((item, idx) => (
-                      <div key={item.id} className="min-w-0">
-                        <div className={`neumo-thumbnail ${currentIndex === idx ? 'is-current' : ''} group relative aspect-square overflow-hidden rounded-xl border bg-[#eef3f4] ${currentIndex === idx ? 'border-[#087f74] ring-2 ring-[#9cd8cf]' : 'border-[#dce6e8]'}`}>
-                        <img src={item.previewUrl} alt={item.fileName} className="size-full object-cover" />
-                        {item.status === 'analyzing' && <div className="absolute inset-0 flex items-center justify-center bg-[#17313d]/65 text-white"><Loader2 className="size-6 animate-spin" /></div>}
-                        {item.status === 'completed' && !isResultOutdated(item) && <span className="absolute left-1.5 top-1.5 rounded-full bg-[#087f74] p-1 text-white" title="Terminé"><CheckCircle2 className="size-3.5" /></span>}
-                        {item.status === 'completed' && isResultOutdated(item) && <span className="absolute left-1.5 top-1.5 rounded-full bg-amber-100 p-1 text-amber-800" title="Localisation modifiée : résultat à actualiser"><RotateCw className="size-3.5" /></span>}
-                        {item.status === 'error' && <span className="absolute left-1.5 top-1.5 rounded-full bg-rose-600 p-1 text-white" title="Échec"><CircleAlert className="size-3.5" /></span>}
-                        {!isAnalyzing && <button type="button" onClick={() => handleRemoveItem(item.id)} className="absolute right-1.5 top-1.5 rounded-full bg-[#17313d]/85 p-1 text-white transition-colors hover:bg-rose-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={`Retirer ${item.fileName}`} title="Retirer cette photo"><X className="size-3.5" /></button>}
-                        <div className="absolute inset-x-0 bottom-0 truncate bg-[#17313d]/85 px-2 py-1.5 text-[10px] text-white" title={`${item.fileName} (${formatFileSize(item.fileSize)})`}>{item.fileName}</div>
+
+                  <p className="fv-selection-guidance">Précisez la localisation de chaque photo si vous la connaissez.</p>
+                  {isAnalyzing && currentIndex !== null && (
+                    <p className="fv-selection-progress" role="status">
+                      Traitement de la photo {currentIndex + 1} sur {items.length}
+                    </p>
+                  )}
+                  <div className="fv-selection-list">
+                    {items.map((item) => (
+                      <article key={item.id} className="fv-selection-row">
+                        <img src={item.previewUrl} alt="" className="fv-selection-thumb" />
+                        <div className="fv-selection-copy">
+                          <span className="fv-selection-name" title={item.fileName}>{item.fileName}</span>
+                          <label className="fv-location-field" htmlFor={'location-' + item.id}>
+                            <span className="fv-location-label">Localisation —</span>
+                            <select
+                              id={'location-' + item.id}
+                              aria-label={'Localisation de ' + item.fileName}
+                              value={item.localisation ?? 'non renseignée'}
+                              onChange={(event) => handleLocationChange(
+                                item.id,
+                                event.target.value as LocalisationPhoto,
+                              )}
+                              disabled={isAnalyzing}
+                              className="fv-location-select"
+                            >
+                              {LOCALISATIONS_PHOTO.map((localisation) => (
+                                <option key={localisation} value={localisation}>
+                                  {LOCALISATION_LABELS[localisation]}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                         </div>
-                        <label htmlFor={`location-${item.id}`} className="mb-1 mt-2 block text-[10px] font-medium text-[#536b75]">Localisation</label>
-                        <div className="relative">
-                          <select
-                            id={`location-${item.id}`}
-                            aria-label={`Localisation de ${item.fileName}`}
-                            value={item.localisation ?? 'non renseignée'}
-                            onChange={(event) => handleLocationChange(item.id, event.target.value as LocalisationPhoto)}
-                            disabled={isAnalyzing}
-                            className="neumo-content-inset min-h-11 w-full min-w-0 appearance-none rounded-lg border border-[#dce6e8] py-2 pl-2 pr-5 text-[10px] text-[#263e48] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3356c9] disabled:cursor-not-allowed disabled:opacity-60"
+                        {!isAnalyzing && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(item.id)}
+                            className="fv-selection-remove"
+                            aria-label={'Retirer ' + item.fileName}
+                            title="Retirer cette photo"
                           >
-                            {LOCALISATIONS_PHOTO.map((localisation) => <option key={localisation} value={localisation}>{LOCALISATION_LABELS[localisation]}</option>)}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-[#627781]" />
-                        </div>
-                      </div>
+                            <X className="size-3.5" />
+                          </button>
+                        )}
+                      </article>
                     ))}
                   </div>
-                </div>
-              )}
 
-              {batchMessage && <p role="alert" className="neumo-alert-warning mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">{batchMessage}</p>}
-              {waiting && <p role="status" aria-live="polite" className="neumo-auth-note mt-4 rounded-xl p-3 text-xs leading-relaxed text-[#536b75]">{waiting.reason === 'recovery' ? 'Pause temporaire. Reprise automatique' : 'Prochaine tentative'} dans {waiting.seconds} s…</p>}
-              <div className="neumo-panel-divider mt-5 flex flex-col gap-3 border-t border-[#e5ecee] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs leading-relaxed text-[#637b82]">{items.length === 0 ? 'Sélectionnez au moins une photo pour commencer.' : remainingCount === 0 ? 'Toutes les photos sont analysées.' : `${remainingCount} photo${remainingCount > 1 ? 's' : ''} à analyser, actualiser ou réessayer.`}</p>
-                <button type="button" onClick={handleStartAnalysis} disabled={remainingCount === 0 || isAnalyzing} className="neumo-button-primary inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#147b52] px-4 text-sm font-semibold text-white shadow-[0_5px_15px_rgba(20,123,82,0.16)] transition-all hover:bg-[#0d6441] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#147b52] disabled:cursor-not-allowed disabled:bg-[#dce6e8] disabled:text-[#82979c] disabled:shadow-none sm:w-auto">
-                  {isAnalyzing ? <><Loader2 className="size-4 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</> : <><ScanSearch className="size-4" /> {isStarted ? 'Reprendre l’analyse' : 'Lancer l’analyse'} <ArrowRight className="size-4" /></>}
-                </button>
-              </div>
-              {isAnalyzing && <button type="button" onClick={() => operationRef.current?.abort()} className="neumo-button-secondary mt-3 inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-semibold text-[#536b75]">Arrêter l’analyse</button>}
+                  {batchMessage && <p role="alert" className="fv-batch-message">{batchMessage}</p>}
+                  {waiting && (
+                    <p role="status" aria-live="polite" className="fv-system-note">
+                      {waiting.reason === 'recovery' ? 'Pause temporaire. Reprise automatique' : 'Prochaine tentative'} dans {waiting.seconds} s…
+                    </p>
+                  )}
+                  <div className="fv-selection-actions">
+                    <p className="fv-selection-status">{remainingText}</p>
+                    <button
+                      type="button"
+                      onClick={handleStartAnalysis}
+                      disabled={remainingCount === 0 || isAnalyzing}
+                      className="fv-primary-button"
+                    >
+                      {isAnalyzing ? (
+                        <><Loader2 className="size-3.5 animate-spin" /> Analyse {currentIndex !== null ? currentIndex + 1 : 0}/{items.length}</>
+                      ) : (
+                        <>{isStarted ? 'Reprendre l’analyse' : 'Lancer l’analyse'} <ArrowRight className="fv-button-arrow size-3.5" /></>
+                      )}
+                    </button>
+                  </div>
+                  {isAnalyzing && (
+                    <button type="button" onClick={() => operationRef.current?.abort()} className="fv-stop-button">
+                      Arrêter l’analyse
+                    </button>
+                  )}
+                </section>
+              )}
             </section>
+
             <LegendBar
               activePriority={activePriorityFilter}
               onPriorityChange={setActivePriorityFilter}
@@ -409,45 +511,67 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
             />
           </aside>
 
-          <section className="neumo-panel flex min-h-[27rem] flex-col overflow-hidden rounded-[20px] border border-[#dce6e8] bg-white shadow-[0_2px_14px_rgba(19,54,65,0.04)] xl:min-h-0" aria-labelledby="results-heading">
-            <div className="neumo-panel-divider flex shrink-0 flex-col gap-3 border-b border-[#e5ecee] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-              <div className="flex items-center gap-3">
-                <div className="neumo-icon neumo-icon-blue flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#edf1fc] text-[#3356c9]"><ClipboardCheck className="size-5" strokeWidth={1.8} /></div>
+          <section className="fv-results" aria-labelledby="results-heading">
+            <div className="fv-results-step">
+              <div className="fv-step-heading">
+                <span className="fv-step-number fv-step-number--blue" aria-hidden="true">02</span>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#3356c9]">02 · Examiner les résultats</p>
-                  <h2 id="results-heading" className="mt-0.5 text-lg font-semibold tracking-tight">Diagnostics</h2>
-                  {activePriorityLabel && <p className="mt-0.5 text-[11px] font-medium text-[#627781]">Filtre actif : {activePriorityLabel}</p>}
-                  {activePriorityFilter && <p className="sr-only" role="status" aria-live="polite">{visibleDiagnosticCount} diagnostic{visibleDiagnosticCount > 1 ? 's' : ''} affiché{visibleDiagnosticCount > 1 ? 's' : ''} pour ce filtre.</p>}
+                  <p className="fv-step-label">Étape</p>
+                  <p className="fv-step-title">Examiner les résultats</p>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                {isAnalyzing && <span className="neumo-chip neumo-chip-success inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><Loader2 className="size-3 animate-spin" /> En cours</span>}
-                {completedCount > 0 && <span className="neumo-chip neumo-chip-success inline-flex items-center gap-1.5 rounded-full bg-[#e7f4f1] px-2.5 py-1 text-[#087f74]"><CheckCircle2 className="size-3" /> {completedCount} terminé{completedCount > 1 ? 's' : ''}</span>}
-                {errorCount > 0 && <span className="neumo-chip neumo-chip-error inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><CircleAlert className="size-3" /> {errorCount} échec{errorCount > 1 ? 's' : ''}</span>}
-                {outdatedCount > 0 && <span className="neumo-chip rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">{outdatedCount} à actualiser</span>}
-                {!isStarted && <span className="neumo-chip rounded-full border border-[#dce6e8] px-2.5 py-1 text-[#71868e]">En attente</span>}
               </div>
             </div>
-            <div id="results-list" className="neumo-results-scroll min-h-0 flex-1 overflow-y-auto bg-[#fbfdfd] p-4 sm:p-5">
+
+            <div className="fv-diagnostics-head">
+              <div>
+                <h2 id="results-heading">Diagnostics</h2>
+                <p>Pré-analyse indicative générée à partir des photos importées</p>
+                {activePriorityFilter && (
+                  <p className="sr-only" role="status" aria-live="polite">
+                    {visibleDiagnosticCount} diagnostic{visibleDiagnosticCount > 1 ? 's' : ''} affiché{visibleDiagnosticCount > 1 ? 's' : ''} pour ce filtre.
+                  </p>
+                )}
+              </div>
+              <div className="fv-diagnostics-pills">
+                {activePriorityLabel && <span className="fv-filter-pill">Filtre — {activePriorityLabel}</span>}
+                {isAnalyzing && (
+                  <span className="fv-status-pill fv-status-pill--success">
+                    <Loader2 className="mr-1 size-3 animate-spin" /> En cours
+                  </span>
+                )}
+                {completedCount > 0 && (
+                  <span className="fv-count-pill">{completedCount} terminé{completedCount > 1 ? 's' : ''}</span>
+                )}
+                {errorCount > 0 && (
+                  <span className="fv-status-pill fv-status-pill--error">{errorCount} échec{errorCount > 1 ? 's' : ''}</span>
+                )}
+                {outdatedCount > 0 && <span className="fv-filter-pill">{outdatedCount} à actualiser</span>}
+                {!isStarted && <span className="fv-status-pill fv-status-pill--waiting">En attente</span>}
+              </div>
+            </div>
+
+            <div id="results-list" className="fv-results-list">
               {isStarted && visibleResults.length > 0 ? (
-                <div className="space-y-3.5">{visibleResults.map((item) => <ResultCard key={item.id} item={item} onRetry={handleRetrySingle} disabled={isAnalyzing} />)}</div>
+                <div>{visibleResults.map((item) => (
+                  <ResultCard key={item.id} item={item} onRetry={handleRetrySingle} disabled={isAnalyzing} />
+                ))}</div>
               ) : isStarted && activePriorityFilter ? (
-                <div className="neumo-empty-state flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce6e8] bg-white px-6 py-10 text-center">
-                  <CircleAlert className="mb-4 size-8 text-[#627781]" strokeWidth={1.5} />
-                  <h3 className="text-base font-semibold tracking-tight text-[#19313b]">Aucun diagnostic pour ce niveau</h3>
-                  <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#71868e]">Sélectionnez un autre niveau dans la grille ou réaffichez tous les diagnostics.</p>
-                  <button type="button" onClick={() => setActivePriorityFilter(null)} className="neumo-button-secondary mt-4 rounded-full px-4 py-2 text-xs font-semibold text-[#3356c9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3356c9]">Tout afficher</button>
+                <div className="fv-empty-state">
+                  <h3>Aucun diagnostic pour ce niveau</h3>
+                  <p>Sélectionnez un autre niveau dans la grille ou réaffichez tous les diagnostics.</p>
+                  <button type="button" onClick={() => setActivePriorityFilter(null)} className="fv-text-button">
+                    Tout afficher
+                  </button>
                 </div>
               ) : (
-                <div className="neumo-empty-state flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-[#dce6e8] bg-white px-6 py-10 text-center">
-                  <div className="neumo-icon neumo-icon-green relative mb-5 flex size-16 items-center justify-center rounded-2xl bg-[#edf7f5] text-[#087f74]"><ScanSearch className="size-8" strokeWidth={1.5} /><span className="absolute -right-1 -top-1 size-3 rounded-full border-[3px] border-white bg-[#74cbbb]" /></div>
-                  <h3 className="text-base font-semibold tracking-tight text-[#19313b]">Prêt pour votre premier diagnostic</h3>
-                  <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#71868e]">Ajoutez les photos de votre visite, puis lancez l'analyse. Les résultats apparaîtront ici au fur et à mesure.</p>
+                <div className="fv-empty-state">
+                  <h3>Prêt pour votre premier diagnostic</h3>
+                  <p>Ajoutez les photos de votre visite, puis lancez l’analyse. Les résultats apparaîtront ici au fur et à mesure.</p>
                 </div>
               )}
             </div>
           </section>
-        </div>
+        </main>
       </div>
     </div>
   );
