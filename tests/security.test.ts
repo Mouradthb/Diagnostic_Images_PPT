@@ -169,18 +169,29 @@ test('the fallback error is preserved when both Gemini models are unavailable', 
 const conciseDiagnostic = {
   statut_analyse: 'constat photographique indicatif',
   priorite: 'Curatif Niveau 2',
-  domaines: ['façade'],
+  famille: 'Façades extérieures',
+  localisation: 'Façade extérieure visible sur la photo',
   perimetre: 'partie commune',
-  constat: 'Une fissure est visible sur la façade.',
-  risque: 'La fissure pourrait s’étendre, à confirmer sur site.',
-  action: 'Programmer un contrôle de la façade.',
-  verification: 'Inspecter la façade sur site.',
+  etat_observations: 'Une fissure est visible sur la façade.',
+  intervention: 'Programmer un contrôle de la façade avant de définir les travaux.',
+  cout_estime_min_ttc_eur: 0,
+  cout_estime_max_ttc_eur: 0,
   confiance: 'moyen',
-  limites: 'La profondeur de la fissure ne peut être mesurée sur la photo.',
 };
 
-test('the concise diagnostic contract accepts the essential PPPT fields', () => {
+test('the report-style diagnostic contract accepts the essential PPPT fields', () => {
   assert.deepEqual(validateResult(conciseDiagnostic), conciseDiagnostic);
+  const priced = { ...conciseDiagnostic, cout_estime_min_ttc_eur: 1200, cout_estime_max_ttc_eur: 2000 };
+  assert.deepEqual(validateResult(priced), priced);
+});
+
+test('maintenance and uncertain results cannot carry an invented cost', () => {
+  for (const priority of ['Entretien', 'Signalement hors PPPT à vérifier', 'À confirmer / expertise nécessaire']) {
+    assert.throws(
+      () => validateResult({ ...conciseDiagnostic, priorite: priority, cout_estime_min_ttc_eur: 100, cout_estime_max_ttc_eur: 200 }),
+      (error: unknown) => error instanceof HttpError && error.status === 502
+    );
+  }
 });
 
 test('an unusable image can be returned without inventing a priority', () => {
@@ -188,14 +199,12 @@ test('an unusable image can be returned without inventing a priority', () => {
     ...conciseDiagnostic,
     statut_analyse: 'image non exploitable',
     priorite: 'À confirmer / expertise nécessaire',
-    domaines: [],
+    famille: 'Non déterminable',
+    localisation: 'Localisation précise à confirmer sur site',
     perimetre: 'indéterminé',
-    constat: 'L’image est trop floue pour identifier l’ouvrage.',
-    risque: 'Non déterminable sur image seule.',
-    action: 'Demander une nouvelle photo nette.',
-    verification: 'Réaliser une visite si une nouvelle photo est impossible.',
+    etat_observations: 'L’image est trop floue pour identifier l’ouvrage.',
+    intervention: 'Demander une nouvelle photo nette ou réaliser une visite.',
     confiance: 'faible',
-    limites: 'Ouvrage et désordre non identifiables.',
   };
   assert.deepEqual(validateResult(unusable), unusable);
   assert.throws(
@@ -204,12 +213,15 @@ test('an unusable image can be returned without inventing a priority', () => {
   );
 });
 
-test('unknown priorities and malformed concise fields are rejected', () => {
+test('unknown priorities and malformed report fields are rejected', () => {
   for (const invalid of [
     { ...conciseDiagnostic, priorite: 'Signalement' },
-    { ...conciseDiagnostic, domaines: ['façade', 'toiture', 'réseau', 'ventilation'] },
-    { ...conciseDiagnostic, constat: '' },
-    { ...conciseDiagnostic, verification: ['inspection'] },
+    { ...conciseDiagnostic, famille: '' },
+    { ...conciseDiagnostic, etat_observations: '' },
+    { ...conciseDiagnostic, intervention: ['inspection'] },
+    { ...conciseDiagnostic, cout_estime_min_ttc_eur: -1 },
+    { ...conciseDiagnostic, cout_estime_min_ttc_eur: 1500, cout_estime_max_ttc_eur: 1000 },
+    { ...conciseDiagnostic, cout_estime_min_ttc_eur: 0, cout_estime_max_ttc_eur: 1000 },
   ]) {
     assert.throws(
       () => validateResult(invalid),
@@ -235,6 +247,14 @@ test('photos without a declared location send explicit neutral context and keep 
   }
   assert.equal(requests.length, 2);
   assert.deepEqual(requests[0].contents, requests[1].contents);
+  const responseSchema = requests[0].generationConfig?.responseSchema;
+  assert.ok(responseSchema);
+  assert.deepEqual(responseSchema.required, [
+    'statut_analyse', 'priorite', 'famille', 'localisation', 'perimetre',
+    'etat_observations', 'intervention', 'cout_estime_min_ttc_eur',
+    'cout_estime_max_ttc_eur', 'confiance',
+  ]);
+  assert.equal(responseSchema.properties.remarque_technique, undefined);
   assert.ok(requests[0].contents.flatMap((content: any) => content.parts).some((part: any) => part.inlineData?.data === validPhoto.imageBase64));
   assert.match(
     JSON.stringify(requests[0].contents),
@@ -374,7 +394,7 @@ test('contract failure telemetry contains no Gemini response content', async (t)
   t.mock.method(globalThis, 'fetch', async () => geminiResponse({
     ...conciseDiagnostic,
     priorite: 'Invalid priority',
-    constat: distinctiveResponseText,
+    etat_observations: distinctiveResponseText,
   }));
 
   await assert.rejects(
@@ -398,7 +418,7 @@ test('the fallback preserves photo context and a serious private-to-common risk 
     ...conciseDiagnostic,
     priorite: 'Curatif Niveau 1',
     perimetre: 'partie privative',
-    risque: 'Le désordre pourrait affecter un réseau collectif, à vérifier sur site.',
+    etat_observations: 'Le désordre pourrait affecter un réseau collectif, à vérifier sur site.',
   };
   t.mock.method(console, 'error', () => undefined);
   t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {

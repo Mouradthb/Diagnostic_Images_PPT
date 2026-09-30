@@ -16,14 +16,14 @@ import type { DiagnosticResult } from '../src/types.ts';
 const diagnostic: DiagnosticResult = {
   statut_analyse: 'constat photographique indicatif',
   priorite: 'Entretien',
-  domaines: ['Ventilation'],
+  famille: 'Ventilation',
+  localisation: 'Logement — bouche d’extraction',
   perimetre: 'partie privative',
-  constat: 'Bouche d’extraction encrassée.',
-  risque: 'La ventilation pourrait être réduite.',
-  action: 'Nettoyer la bouche.',
-  verification: 'Vérifier le débit.',
+  etat_observations: 'Bouche d’extraction encrassée.',
+  intervention: 'Nettoyer la bouche et vérifier le débit sur site.',
+  cout_estime_min_ttc_eur: 0,
+  cout_estime_max_ttc_eur: 0,
   confiance: 'moyen',
-  limites: 'Le débit ne peut pas être mesuré sur la photo.',
 };
 
 function memoryStorage(): DiagnosticCacheStorage {
@@ -106,10 +106,10 @@ test('cache is bounded across accounts, evicts the oldest result and updates dup
   assert.equal(stored.entries.length, DIAGNOSTIC_CACHE_MAX_ENTRIES);
   assert.equal(cache.getCachedDiagnostic('owner-a', key(0)), null);
   assert.ok(cache.getCachedDiagnostic('owner-a', key(DIAGNOSTIC_CACHE_MAX_ENTRIES)));
-  const updated = { ...diagnostic, constat: 'Constat actualisé.' };
+  const updated = { ...diagnostic, etat_observations: 'Constat actualisé.' };
   cache.cacheDiagnostic('owner-a', key(DIAGNOSTIC_CACHE_MAX_ENTRIES), updated);
   assert.equal(JSON.parse(storage.getItem(DIAGNOSTIC_CACHE_STORAGE_KEY)!).entries.length, DIAGNOSTIC_CACHE_MAX_ENTRIES);
-  assert.equal(cache.getCachedDiagnostic('owner-a', key(DIAGNOSTIC_CACHE_MAX_ENTRIES))?.constat, updated.constat);
+  assert.equal(cache.getCachedDiagnostic('owner-a', key(DIAGNOSTIC_CACHE_MAX_ENTRIES))?.etat_observations, updated.etat_observations);
 });
 
 test('clearing one account leaves the other account diagnostics available', () => {
@@ -137,7 +137,10 @@ test('malformed or incoherent stored diagnostics are ignored', () => {
   stored.entries[0].result = { ...diagnostic, confiance: 'inventée' };
   storage.setItem(DIAGNOSTIC_CACHE_STORAGE_KEY, JSON.stringify(stored));
   assert.equal(cache.getCachedDiagnostic('owner-a', key()), null);
-  stored.entries[0].result = { ...diagnostic, action: '' };
+  stored.entries[0].result = { ...diagnostic, intervention: '' };
+  storage.setItem(DIAGNOSTIC_CACHE_STORAGE_KEY, JSON.stringify(stored));
+  assert.equal(cache.getCachedDiagnostic('owner-a', key()), null);
+  stored.entries[0].result = { ...diagnostic, cout_estime_min_ttc_eur: -100 };
   storage.setItem(DIAGNOSTIC_CACHE_STORAGE_KEY, JSON.stringify(stored));
   assert.equal(cache.getCachedDiagnostic('owner-a', key()), null);
   stored.entries[0].result = diagnostic;
@@ -149,14 +152,15 @@ test('malformed or incoherent stored diagnostics are ignored', () => {
 test('only approved diagnostic fields are persisted and restored values cannot mutate the cache', () => {
   const storage = memoryStorage();
   const cache = createDiagnosticCache(storage, () => 1000);
-  const extraFields = { ...diagnostic, imageBase64: 'secret-photo-bytes', apiKey: 'secret-api-key', file: { name: 'secret.jpg' } };
+  const extraFields = { ...diagnostic, imageBase64: 'secret-photo-bytes', apiKey: 'secret-api-key', file: { name: 'secret.jpg' }, remarque_technique: 'unused-legacy-field' };
   cache.cacheDiagnostic('owner-a', key(), extraFields);
   const raw = storage.getItem(DIAGNOSTIC_CACHE_STORAGE_KEY)!;
   assert.equal(raw.includes('secret-'), false);
   assert.equal(raw.includes('secret.jpg'), false);
+  assert.equal(raw.includes('unused-legacy-field'), false);
   const restored = cache.getCachedDiagnostic('owner-a', key())!;
-  restored.domaines.push('Unrelated');
-  restored.constat = 'Changed by caller';
+  restored.famille = 'Changed by caller';
+  restored.etat_observations = 'Changed by caller';
   assert.deepEqual(cache.getCachedDiagnostic('owner-a', key()), diagnostic);
 });
 

@@ -2,25 +2,28 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from '../src/App';
-import type { DiagnosticResult } from '../src/types';
+import { DIAGNOSTIC_NIVEAUX, type DiagnosticResult } from '../src/types';
 import '../src/index.css';
 
 const params = new URLSearchParams(location.search);
 const scenario = params.get('scenario') ?? 'success';
+const requestedPriority = params.get('priority');
+const priority = DIAGNOSTIC_NIVEAUX.find((value) => value === requestedPriority) ?? 'À confirmer / expertise nécessaire';
+const isPricedPriority = priority.startsWith('Curatif') || priority === 'Travaux énergétiques';
 const ownerUid = `browser-test-${scenario}-${params.get('run') ?? 'manual'}`;
 const calls: boolean[] = [];
 let renderCalls = () => undefined;
 const diagnostic: DiagnosticResult = {
   statut_analyse: 'constat photographique indicatif',
-  priorite: 'À confirmer / expertise nécessaire',
-  domaines: [],
+  priorite: priority,
+  famille: priority === 'Travaux énergétiques' ? 'Isolation thermique' : 'Non précisée',
+  localisation: 'Non renseignée',
   perimetre: 'indéterminé',
-  constat: 'Résultat simulé pour vérifier le fonctionnement de l’interface.',
-  risque: 'Aucun diagnostic réel n’est produit dans ce test.',
-  action: 'Vérifier le compte à rebours et la réutilisation du résultat.',
-  verification: 'Test local uniquement.',
+  etat_observations: 'Résultat simulé pour vérifier le fonctionnement de l’interface. Aucun diagnostic réel n’est produit dans ce test.',
+  intervention: 'Vérifier le compte à rebours et la réutilisation du résultat. Test local uniquement.',
+  cout_estime_min_ttc_eur: isPricedPriority ? 1000 : 0,
+  cout_estime_max_ttc_eur: isPricedPriority ? 1500 : 0,
   confiance: 'faible',
-  limites: 'Photo de test ; aucun appel à un fournisseur d’IA.',
 };
 const originalFetch = window.fetch.bind(window);
 window.fetch = async (input, init) => {

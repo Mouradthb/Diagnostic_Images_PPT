@@ -40,39 +40,47 @@ function isText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= 8000;
 }
 
+function isEstimatedCost(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10_000_000;
+}
+
 /** Rebuild only approved fields; storage must never be trusted as an API response. */
 function restoreDiagnostic(value: unknown): DiagnosticResult | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const result = value as Record<string, unknown>;
   if (!isOneOf(result.statut_analyse, STATUTS_ANALYSE)
     || !isOneOf(result.priorite, DIAGNOSTIC_NIVEAUX)
-    || !Array.isArray(result.domaines)
-    || result.domaines.length > 3
-    || !result.domaines.every(isText)
+    || !isText(result.famille)
+    || !isText(result.localisation)
     || !isOneOf(result.perimetre, PERIMETRES_APPARENTS)
-    || !isText(result.constat)
-    || !isText(result.risque)
-    || !isText(result.action)
-    || !isText(result.verification)
-    || !isOneOf(result.confiance, NIVEAUX_CONFIANCE)
-    || !isText(result.limites)) return null;
+    || !isText(result.etat_observations)
+    || !isText(result.intervention)
+    || !isEstimatedCost(result.cout_estime_min_ttc_eur)
+    || !isEstimatedCost(result.cout_estime_max_ttc_eur)
+    || result.cout_estime_min_ttc_eur > result.cout_estime_max_ttc_eur
+    || (result.cout_estime_min_ttc_eur === 0) !== (result.cout_estime_max_ttc_eur === 0)
+    || !isOneOf(result.confiance, NIVEAUX_CONFIANCE)) return null;
 
   if (result.statut_analyse === 'image non exploitable'
     && (result.priorite !== 'À confirmer / expertise nécessaire' || result.confiance !== 'faible')) return null;
   if (result.statut_analyse === 'expertise nécessaire'
     && result.priorite !== 'À confirmer / expertise nécessaire') return null;
+  if ((result.priorite === 'Entretien'
+    || result.priorite === 'Signalement hors PPPT à vérifier'
+    || result.priorite === 'À confirmer / expertise nécessaire')
+    && (result.cout_estime_min_ttc_eur !== 0 || result.cout_estime_max_ttc_eur !== 0)) return null;
 
   return {
     statut_analyse: result.statut_analyse,
     priorite: result.priorite,
-    domaines: [...result.domaines],
+    famille: result.famille,
+    localisation: result.localisation,
     perimetre: result.perimetre,
-    constat: result.constat,
-    risque: result.risque,
-    action: result.action,
-    verification: result.verification,
+    etat_observations: result.etat_observations,
+    intervention: result.intervention,
+    cout_estime_min_ttc_eur: result.cout_estime_min_ttc_eur,
+    cout_estime_max_ttc_eur: result.cout_estime_max_ttc_eur,
     confiance: result.confiance,
-    limites: result.limites,
   };
 }
 

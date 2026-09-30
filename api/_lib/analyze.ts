@@ -34,18 +34,19 @@ const RESPONSE_SCHEMA = {
   properties: {
     statut_analyse: { type: Type.STRING, enum: [...STATUTS_ANALYSE] },
     priorite: { type: Type.STRING, enum: [...DIAGNOSTIC_NIVEAUX] },
-    domaines: { type: Type.ARRAY, items: { type: Type.STRING }, maxItems: 3 },
+    famille: { type: Type.STRING },
+    localisation: { type: Type.STRING },
     perimetre: { type: Type.STRING, enum: [...PERIMETRES_APPARENTS] },
-    constat: { type: Type.STRING },
-    risque: { type: Type.STRING },
-    action: { type: Type.STRING },
-    verification: { type: Type.STRING },
+    etat_observations: { type: Type.STRING },
+    intervention: { type: Type.STRING },
+    cout_estime_min_ttc_eur: { type: Type.INTEGER },
+    cout_estime_max_ttc_eur: { type: Type.INTEGER },
     confiance: { type: Type.STRING, enum: [...NIVEAUX_CONFIANCE] },
-    limites: { type: Type.STRING },
   },
   required: [
-    'statut_analyse', 'priorite', 'domaines', 'perimetre', 'constat',
-    'risque', 'action', 'verification', 'confiance', 'limites',
+    'statut_analyse', 'priorite', 'famille', 'localisation', 'perimetre',
+    'etat_observations', 'intervention', 'cout_estime_min_ttc_eur',
+    'cout_estime_max_ttc_eur', 'confiance',
   ],
 };
 
@@ -101,8 +102,8 @@ function isNonEmptyText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function isTextArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(isNonEmptyText);
+function isEstimatedCost(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10_000_000;
 }
 
 export function validateResult(value: unknown): DiagnosticResult {
@@ -113,15 +114,16 @@ export function validateResult(value: unknown): DiagnosticResult {
   const result = value as Record<string, unknown>;
   if (!isOneOf(result.statut_analyse, STATUTS_ANALYSE)
     || !isOneOf(result.priorite, DIAGNOSTIC_NIVEAUX)
-    || !isTextArray(result.domaines)
-    || result.domaines.length > 3
+    || !isNonEmptyText(result.famille)
+    || !isNonEmptyText(result.localisation)
     || !isOneOf(result.perimetre, PERIMETRES_APPARENTS)
-    || !isNonEmptyText(result.constat)
-    || !isNonEmptyText(result.risque)
-    || !isNonEmptyText(result.action)
-    || !isNonEmptyText(result.verification)
-    || !isOneOf(result.confiance, NIVEAUX_CONFIANCE)
-    || !isNonEmptyText(result.limites)) {
+    || !isNonEmptyText(result.etat_observations)
+    || !isNonEmptyText(result.intervention)
+    || !isEstimatedCost(result.cout_estime_min_ttc_eur)
+    || !isEstimatedCost(result.cout_estime_max_ttc_eur)
+    || result.cout_estime_min_ttc_eur > result.cout_estime_max_ttc_eur
+    || (result.cout_estime_min_ttc_eur === 0) !== (result.cout_estime_max_ttc_eur === 0)
+    || !isOneOf(result.confiance, NIVEAUX_CONFIANCE)) {
     throw new HttpError(502, 'Le diagnostic reçu est incomplet. Réessayez cette photo.');
   }
 
@@ -131,6 +133,12 @@ export function validateResult(value: unknown): DiagnosticResult {
   }
   if (result.statut_analyse === 'expertise nécessaire' && result.priorite !== 'À confirmer / expertise nécessaire') {
     throw new HttpError(502, 'Le diagnostic reçu est incohérent. Réessayez cette photo.');
+  }
+  if ((result.priorite === 'Entretien'
+    || result.priorite === 'Signalement hors PPPT à vérifier'
+    || result.priorite === 'À confirmer / expertise nécessaire')
+    && (result.cout_estime_min_ttc_eur !== 0 || result.cout_estime_max_ttc_eur !== 0)) {
+    throw new HttpError(502, 'Le chiffrage reçu est incohérent. Réessayez cette photo.');
   }
 
   return result as unknown as DiagnosticResult;
@@ -233,7 +241,7 @@ async function generateWithModel(
         abortSignal: modelController.signal,
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.15,
-        maxOutputTokens: 800,
+        maxOutputTokens: 1600,
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,
         ...(thinkingConfig ? { thinkingConfig } : {}),

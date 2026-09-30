@@ -24,14 +24,14 @@ export type NiveauConfiance = (typeof NIVEAUX_CONFIANCE)[number];
 export interface DiagnosticResult {
   statut_analyse: StatutAnalyse;
   priorite: DiagnosticNiveau;
-  domaines: string[];
+  famille: string;
+  localisation: string;
   perimetre: PerimetreApparent;
-  constat: string;
-  risque: string;
-  action: string;
-  verification: string;
+  etat_observations: string;
+  intervention: string;
+  cout_estime_min_ttc_eur: number;
+  cout_estime_max_ttc_eur: number;
   confiance: NiveauConfiance;
-  limites: string;
 }
 
 export interface InspectionImageItem {

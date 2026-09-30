@@ -99,7 +99,10 @@ async function requestAnalysis(
         },
       );
     }
-    if (!data.statut_analyse || !data.priorite || !data.constat || !data.action || !data.limites) {
+    if (!data.statut_analyse || !data.priorite || !data.famille || !data.localisation
+      || !data.etat_observations || !data.intervention || !data.confiance
+      || !Number.isInteger(data.cout_estime_min_ttc_eur)
+      || !Number.isInteger(data.cout_estime_max_ttc_eur)) {
       throw new Error('Réponse invalide : champs requis manquants.');
     }
     return data as DiagnosticResult;
@@ -316,6 +319,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     DIAGNOSTIC_NIVEAUX.map((priority) => [priority, countPriorityResults(items, priority)]),
   ) as Record<DiagnosticNiveau, number>;
   const visibleResults = filterDisplayedResults(items, activePriorityFilter);
+  const displayNumberById = new Map(items.map((item, index) => [item.id, index + 1]));
   const activePriorityLabel = activePriorityFilter
     ? getNiveauBadgeStyle(activePriorityFilter).label
     : null;
@@ -553,7 +557,13 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
             <div id="results-list" className="fv-results-list">
               {isStarted && visibleResults.length > 0 ? (
                 <div>{visibleResults.map((item) => (
-                  <ResultCard key={item.id} item={item} onRetry={handleRetrySingle} disabled={isAnalyzing} />
+                  <ResultCard
+                    key={item.id}
+                    item={item}
+                    displayNumber={displayNumberById.get(item.id) ?? 1}
+                    onRetry={handleRetrySingle}
+                    disabled={isAnalyzing}
+                  />
                 ))}</div>
               ) : isStarted && activePriorityFilter ? (
                 <div className="fv-empty-state">
