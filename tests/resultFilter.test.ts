@@ -89,6 +89,7 @@ test('every report priority keeps its own label and colour in the table header',
     assert.ok(html.includes(label));
     assert.ok(html.includes(className));
     assert.ok(html.includes('Fiche de diagnostic numéro 3'));
+    assert.ok(html.includes('Illustrations'));
   }
 });
 
@@ -122,7 +123,7 @@ test('cost row shows an indicative AI range without a false BatiChiffrage attrib
   assert.ok(html.includes('1 000 à 1 500 € TTC'));
   assert.ok(html.includes('Estimation IA'));
   assert.ok(!html.includes('Bati Chiffrage'));
-  assert.ok(!html.includes('Illustrations'));
+  assert.ok(html.includes('Illustrations'));
   assert.ok(!html.includes('Remarque technique'));
   const maintenance = renderToStaticMarkup(createElement(ResultCard, {
     item: item('maintenance', 'completed', 'Entretien'), displayNumber: 2,
@@ -143,7 +144,7 @@ test('cost row shows an indicative AI range without a false BatiChiffrage attrib
   assert.ok(uncertain.includes('Travaux à effectuer'));
   assert.ok(uncertain.includes('Coût estimé'));
   assert.ok(uncertain.includes('À déterminer après visite'));
-  assert.ok(!uncertain.includes('Illustrations'));
+  assert.ok(uncertain.includes('Illustrations'));
   assert.ok(!uncertain.includes('Estimation IA —'));
 });
 

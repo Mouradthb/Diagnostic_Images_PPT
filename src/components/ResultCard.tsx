@@ -99,13 +99,11 @@ export function ResultCard({ item, displayNumber, onRetry, disabled }: ResultCar
               </ResultTableRow>
             )}
 
-            {isMaintenanceOrSignalement && (
-              <ResultTableRow label="Illustrations">
-                <figure className="fv-result-table-figure">
-                  <img src={item.previewUrl} alt={'Photo importée — ' + item.fileName} />
-                </figure>
-              </ResultTableRow>
-            )}
+            <ResultTableRow label="Illustrations">
+              <figure className="fv-result-table-figure">
+                <img src={item.previewUrl} alt={'Photo importée — ' + item.fileName} />
+              </figure>
+            </ResultTableRow>
           </tbody>
         </table>
       ) : (
