@@ -40,8 +40,11 @@ export function ResultCard({ item, onRetry, disabled }: ResultCardProps) {
     : result?.statut_analyse === 'image non exploitable'
       ? 'Image non exploitable'
       : 'Expertise nécessaire';
-  const priorityClass = 'fv-result-badge '
-    + (isConfirmation ? 'fv-result-badge--priority' : 'fv-result-badge--neutral');
+  const priorityClass = isConfirmation
+    ? 'fv-result-badge fv-result-badge--priority'
+    : badgeStyle
+      ? `fv-result-badge ${badgeStyle.bgClass} ${badgeStyle.textClass} ${badgeStyle.borderClass}`
+      : 'fv-result-badge fv-result-badge--neutral';
 
   return (
     <article id={'result-' + item.id} className="fv-result-card">
