@@ -9,6 +9,7 @@ const PAGE_H = 10691813 / 914400;
 const TABLE_X = 0.56;
 const TABLE_W = PAGE_W - TABLE_X * 2;
 const TABLE_TOP = 2.56;
+const TABLE_TOP_WITHOUT_PRIORITY = 1.48;
 const TABLE_BOTTOM = 10.91;
 const FONT = 'Arial';
 const BODY_SIZE = 10.5;
@@ -100,7 +101,7 @@ function wrapLines(text: string, availableWidth: number, fontSizePt = BODY_SIZE)
 }
 
 function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImageItem, number: number,
-  logoData: string, continuation: boolean): { slide: Slide; y: number } {
+  logoData: string, showPriorityIntro: boolean): { slide: Slide; y: number } {
   const slide = pptx.addSlide();
   slides.push(slide);
   slide.background = { color: 'FFFFFF' };
@@ -112,30 +113,33 @@ function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImag
     TABLE_X + 0.14, 0.93, TABLE_W - 0.25, 0.26,
     { fontSize: 11.5, bold: true, color: 'FFFFFF' });
   const priority = PRIORITY_COLORS[item.result!.priorite];
-  slide.addShape('chevron', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
-    line: { color: BORDER, width: 0.8 }, fill: { color: priority.fill } });
-  addText(slide, priority.ribbon, TABLE_X + 0.07, 1.80, 1.43, 0.38,
-    { fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
-      bold: true, color: priority.text, align: 'center', wrap: true });
-  addText(slide, priority.detail, TABLE_X + 1.99, 1.48, TABLE_W - 2.05, 0.90,
-    { fontSize: 8.3, bold: true, valign: 'top', wrap: true, lineSpacingMultiple: 1.0 });
+  if (showPriorityIntro) {
+    slide.addShape('chevron', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
+      line: { color: BORDER, width: 0.8 }, fill: { color: priority.fill } });
+    addText(slide, priority.ribbon, TABLE_X + 0.07, 1.80, 1.43, 0.38,
+      { fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
+        bold: true, color: priority.text, align: 'center', wrap: true });
+    addText(slide, priority.detail, TABLE_X + 1.99, 1.55, TABLE_W - 2.05, 0.89,
+      { fontSize: 8.3, bold: true, valign: 'middle', wrap: true, lineSpacingMultiple: 1.0 });
+  }
 
+  const tableTop = showPriorityIntro ? TABLE_TOP : TABLE_TOP_WITHOUT_PRIORITY;
   const col1 = 0.80;
   const col3 = 2.42;
   const col2 = TABLE_W - col1 - col3;
   const familyLines = wrapLines(`Famille : ${item.result!.famille}`, col2 - 0.20, 10.2);
   const headingHeight = Math.max(0.48, familyLines.length * 0.195 + 0.16);
-  addRectangle(slide, TABLE_X, TABLE_TOP, col1, headingHeight);
-  addRectangle(slide, TABLE_X + col1, TABLE_TOP, col2, headingHeight);
-  addRectangle(slide, TABLE_X + col1 + col2, TABLE_TOP, col3, headingHeight, priority.fill);
-  addText(slide, `N°${number}`, TABLE_X + 0.04, TABLE_TOP + (headingHeight - 0.24) / 2, col1 - 0.08, 0.24,
+  addRectangle(slide, TABLE_X, tableTop, col1, headingHeight);
+  addRectangle(slide, TABLE_X + col1, tableTop, col2, headingHeight);
+  addRectangle(slide, TABLE_X + col1 + col2, tableTop, col3, headingHeight, priority.fill);
+  addText(slide, `N°${number}`, TABLE_X + 0.04, tableTop + (headingHeight - 0.24) / 2, col1 - 0.08, 0.24,
     { bold: true, align: 'center' });
   addText(slide, familyLines.join('\n'), TABLE_X + col1 + 0.08,
-    TABLE_TOP + 0.08, col2 - 0.16, headingHeight - 0.16, { bold: true, fontSize: 10.2 });
+    tableTop + 0.08, col2 - 0.16, headingHeight - 0.16, { bold: true, fontSize: 10.2 });
   addText(slide, priority.label, TABLE_X + col1 + col2 + 0.06,
-    TABLE_TOP + (headingHeight - 0.31) / 2, col3 - 0.12, 0.31,
+    tableTop + (headingHeight - 0.31) / 2, col3 - 0.12, 0.31,
     { bold: true, color: priority.text, align: 'center', fontSize: priority.label.length > 19 ? 9.7 : 10.5 });
-  return { slide, y: TABLE_TOP + headingHeight };
+  return { slide, y: tableTop + headingHeight };
 }
 
 function addBodyRow(slide: Slide, label: string, lines: string[], y: number): number {
@@ -240,7 +244,8 @@ export async function renderDiagnosticPptx(
     const item = exportable[index];
     const result = item.result!;
     const number = index + 1;
-    let { slide, y } = addPageHeader(pptx, slides, item, number, logoData, false);
+    const startsPriority = index === 0 || exportable[index - 1].result!.priorite !== result.priorite;
+    let { slide, y } = addPageHeader(pptx, slides, item, number, logoData, startsPriority);
     const fields = [
       { label: 'Localisation', text: result.localisation },
       { label: 'Etat / Observations', text: result.etat_observations },
@@ -253,21 +258,21 @@ export async function renderDiagnosticPptx(
       while (cursor < lines.length) {
         const capacity = Math.floor((TABLE_BOTTOM - y - 0.47) / BODY_LINE);
         if (capacity < 1) {
-          ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, true));
+          ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, false));
           continue;
         }
         const chunk = lines.slice(cursor, cursor + capacity);
         y = addBodyRow(slide, cursor ? `${field.label} (suite)` : field.label, chunk, y);
         cursor += chunk.length;
-        if (cursor < lines.length) ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, true));
+        if (cursor < lines.length) ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, false));
       }
     }
     if (result.priorite !== 'Entretien' && result.priorite !== 'Signalement hors PPPT à vérifier') {
       const costHeight = result.cout_estime_min_ttc_eur > 0 ? 0.84 : 0.64;
-      if (y + costHeight > TABLE_BOTTOM) ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, true));
+      if (y + costHeight > TABLE_BOTTOM) ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, false));
       y = addCostRow(slide, result.cout_estime_min_ttc_eur, result.cout_estime_max_ttc_eur, y);
     }
-    if (TABLE_BOTTOM - y < 2.40) ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, true));
+    if (TABLE_BOTTOM - y < 2.40) ({ slide, y } = addPageHeader(pptx, slides, item, number, logoData, false));
     const photo = await loadPhoto(item.file);
     addIllustration(slide, photo.data, photo.width, photo.height, y, number);
   }

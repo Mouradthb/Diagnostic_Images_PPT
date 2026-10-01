@@ -74,6 +74,8 @@ test('generated PPTX uses A4 portrait slides, correct fields, priority order and
   assert.ok(detailLineOneIndex >= 0);
   assert.ok(detailLineTwoIndex > detailLineOneIndex);
   assert.match(contents[0].slice(detailLineOneIndex, detailLineTwoIndex), /<\/a:p><a:p>/);
+  const detailShape = contents[0].slice(contents[0].lastIndexOf('<p:sp>', detailLineOneIndex), detailLineOneIndex);
+  assert.match(detailShape, /<a:bodyPr[^>]*anchor="ctr"/);
   assert.match(contents[1], /CURATIF NIVEAU 1/);
   assert.match(contents[2], /TRAVAUX ÉNERGÉTIQUES/);
   assert.match(contents[3], /À CONFIRMER/);
@@ -90,15 +92,42 @@ test('generated PPTX uses A4 portrait slides, correct fields, priority order and
   assert.ok(Object.keys(packageFile.files).some((path) => /^ppt\/media\//.test(path)));
 });
 
+test('priority introduction appears once per priority and the table stays on later pages', async () => {
+  const items = [
+    photo('curative', 'Curatif Niveau 1'),
+    photo('maintenance-one', 'Entretien'),
+    photo('maintenance-two', 'Entretien'),
+  ];
+  const output = await renderDiagnosticPptx(items, logoData,
+    async () => ({ data: logoData, width: 238, height: 60 }));
+  const packageFile = await JSZip.loadAsync(await output.arrayBuffer());
+  const contents = await Promise.all([1, 2, 3].map((number) =>
+    packageFile.file(`ppt/slides/slide${number}.xml`)!.async('string')));
+  assert.match(contents[0], /prst="chevron"/);
+  assert.match(contents[0], /Opérations d&apos;entretien courant/);
+  assert.doesNotMatch(contents[1], /prst="chevron"|Opérations d&apos;entretien courant/);
+  assert.match(contents[1], /Famille maintenance-two|ENTRETIEN/);
+  assert.match(contents[2], /prst="chevron"/);
+  assert.match(contents[2], /Curatif Niveau 1 \(impact fort\)/);
+  for (const content of contents) assert.match(content, /Illustrations/);
+});
+
 test('long diagnostic text continues onto another A4 slide without dropping the illustration', async () => {
   const item = photo('long', 'Curatif Niveau 2');
   item.result!.etat_observations = Array.from({ length: 110 }, (_, index) => `Observation ${index + 1} visible sur la photographie.`).join(' ');
   const output = await renderDiagnosticPptx([item], logoData,
     async () => ({ data: logoData, width: 238, height: 60 }));
   const packageFile = await JSZip.loadAsync(await output.arrayBuffer());
-  const slides = Object.keys(packageFile.files).filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path));
+  const slides = Object.keys(packageFile.files)
+    .filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path))
+    .sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]));
   assert.ok(slides.length > 1);
   const contents = await Promise.all(slides.map((path) => packageFile.file(path)!.async('string')));
+  assert.match(contents[0], /prst="chevron"/);
+  for (const continuation of contents.slice(1)) {
+    assert.doesNotMatch(continuation, /prst="chevron"|Curatif Niveau 2 \(impact modéré\)/);
+    assert.match(continuation, /Famille long|CURATIF NIVEAU 2/);
+  }
   assert.ok(contents.some((content) => content.includes('Observation 110')));
   assert.ok(contents.some((content) => content.includes('Illustrations')));
 });
