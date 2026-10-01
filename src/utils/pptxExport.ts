@@ -17,7 +17,7 @@ const INK = '171717';
 const BORDER = '2B2B2B';
 
 const PRIORITY_COLORS: Record<DiagnosticNiveau, { fill: string; text: string; label: string; ribbon: string; detail: string }> = {
-  Entretien: { fill: '54C4C5', text: 'FFFFFF', label: 'ENTRETIEN', ribbon: 'Entretien', detail: 'Hors PPPT (courant)' },
+  Entretien: { fill: '54C4C5', text: 'FFFFFF', label: 'ENTRETIEN', ribbon: 'Entretien', detail: 'Opérations d\'entretien courant et de maintenance préventive nécessaires au maintien en bon état des équipements et du bâtiment.'},
   'Signalement hors PPPT à vérifier': { fill: '0874BD', text: 'FFFFFF', label: 'SIGNALEMENT', ribbon: 'Signalement', detail: 'Périmètre à vérifier' },
   'Curatif Niveau 1': { fill: 'D52234', text: 'FFFFFF', label: 'CURATIF NIVEAU 1', ribbon: 'Curatif Niveau 1', detail: 'Priorité immédiate à 2 ans' },
   'Curatif Niveau 2': { fill: 'F97316', text: 'FFFFFF', label: 'CURATIF NIVEAU 2', ribbon: 'Curatif Niveau 2', detail: 'Impact modéré 3 à 5 ans' },
@@ -114,7 +114,7 @@ function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImag
   const priority = PRIORITY_COLORS[item.result!.priorite];
   addText(slide, `Rubrique ${priority.label}${continuation ? ' · suite' : ''}`,
     TABLE_X, 1.40, TABLE_W, 0.25, { fontSize: 12, bold: true });
-  slide.addShape('rightArrow', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
+  slide.addShape('pentagon', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
     line: { color: BORDER, width: 0.8 }, fill: { color: priority.fill } });
   addText(slide, priority.ribbon, TABLE_X + 0.07, 1.80, 1.43, 0.38,
     { fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
