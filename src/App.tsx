@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight,
+  FileDown,
   ImagePlus,
   Loader2,
   Trash2,
@@ -132,6 +133,8 @@ async function requestAnalysis(
 export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const [items, setItems] = useState<InspectionImageItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -311,6 +314,9 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const completedCount = items.filter(
     (item) => item.status === 'completed' && !isResultOutdated(item),
   ).length;
+  const exportableCount = items.filter(
+    (item) => item.status === 'completed' && item.result && !isResultOutdated(item),
+  ).length;
   const errorCount = items.filter((item) => item.status === 'error').length;
   const outdatedCount = items.filter(isResultOutdated).length;
   const remainingCount = selectRemainingIndices(items).length;
@@ -330,6 +336,28 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const remainingText = remainingCount === 0
     ? 'Toutes les photos sont analysées.'
     : remainingCount + ' photo' + (remainingCount > 1 ? 's' : '') + ' à analyser, actualiser ou réessayer.';
+
+  const handleExportPptx = async () => {
+    if (isExporting || isAnalyzing || exportableCount === 0) return;
+    setIsExporting(true);
+    setExportError('');
+    try {
+      const { buildDiagnosticPptx } = await import('./utils/pptxExport');
+      const file = await buildDiagnosticPptx(items);
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Diagnostics_France_Verte_${new Date().toISOString().slice(0, 10)}.pptx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'L’export PPTX a échoué. Réessayez.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="fv-app-shell">
@@ -537,6 +565,14 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
                 )}
               </div>
               <div className="fv-diagnostics-pills">
+                {exportableCount > 0 && (
+                  <button type="button" className="fv-export-button" onClick={handleExportPptx}
+                    disabled={isAnalyzing || isExporting}
+                    title={`Exporter ${exportableCount} diagnostic${exportableCount > 1 ? 's' : ''} terminé${exportableCount > 1 ? 's' : ''} et à jour`}>
+                    {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+                    {isExporting ? 'Création du PPTX…' : 'Exporter tout en PPTX'}
+                  </button>
+                )}
                 {activePriorityLabel && <span className="fv-filter-pill">Filtre — {activePriorityLabel}</span>}
                 {isAnalyzing && (
                   <span className="fv-status-pill fv-status-pill--success">
@@ -553,6 +589,8 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
                 {!isStarted && <span className="fv-status-pill fv-status-pill--waiting">En attente</span>}
               </div>
             </div>
+
+            {exportError && <p className="fv-export-error" role="alert">{exportError}</p>}
 
             <div id="results-list" className="fv-results-list">
               {isStarted && visibleResults.length > 0 ? (

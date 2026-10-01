@@ -708,6 +708,40 @@ img {
   gap: 0.45rem;
 }
 
+.fv-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 1.85rem;
+  padding: 0.3rem 0.78rem;
+  border: 1px solid var(--fv-green);
+  border-radius: 999px;
+  background: var(--fv-green);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.fv-export-button:hover:not(:disabled) {
+  border-color: var(--fv-green-dark);
+  background: var(--fv-green-dark);
+}
+
+.fv-export-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fv-export-error {
+  margin: 0.8rem 0 0;
+  color: #a93439;
+  font-size: 0.72rem;
+}
+
 .fv-filter-pill,
 .fv-count-pill,
 .fv-status-pill,

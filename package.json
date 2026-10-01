@@ -8,7 +8,7 @@
     "build": "vite build",
     "start": "tsx dev-server.ts",
     "preview": "vite preview",
-    "test": "node --import tsx --test tests/security.test.ts tests/analysisRetry.test.ts tests/analysisControl.test.ts tests/diagnosticCache.test.ts tests/resultFilter.test.ts",
+    "test": "node --import tsx --test tests/security.test.ts tests/analysisRetry.test.ts tests/analysisControl.test.ts tests/diagnosticCache.test.ts tests/resultFilter.test.ts tests/pptxExport.test.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
@@ -22,6 +22,7 @@
     "firebase-admin": "^14.4.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "pptxgenjs": "4.0.1",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "vite": "^6.2.3"
@@ -33,12 +34,16 @@
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "jszip": "3.10.2",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   },
   "overrides": {
+    "pptxgenjs": {
+      "image-size": "2.0.4"
+    },
     "jwks-rsa": {
       "jose": "4.15.9"
     }

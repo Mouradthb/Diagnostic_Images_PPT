@@ -14,6 +14,12 @@ Une localisation privative ne diminue pas automatiquement une priorité curative
 
 Modifier la localisation d'une photo déjà analysée conserve son résultat et le signale comme **à actualiser**. Aucun appel n'est lancé automatiquement : utiliser **Actualiser l'analyse** pour cette photo ou reprendre le lot. Revenir au choix utilisé par le diagnostic retire ce besoin d'actualisation. Après un rechargement, réimporter les mêmes photos et sélectionner la même localisation permet de réutiliser les diagnostics encore conservés, puis lancer le lot pour les retrouver. Les photos elles-mêmes doivent être sélectionnées à nouveau.
 
+## Export PowerPoint
+
+Le bouton **Exporter tout en PPTX** crée dans le navigateur un rapport A4 portrait avec le logo France Verte et une fiche par diagnostic terminé et à jour. Les fiches sont classées dans cet ordre : Entretien, Signalement, Curatif Niveau 1, Curatif Niveau 2, Curatif Niveau 3, Travaux énergétiques, puis À confirmer. Les catégories absentes sont ignorées et l'ordre d'import est conservé au sein d'une même catégorie. Le filtre de lecture de l'interface ne réduit pas le rapport. Les textes et éléments de tableau restent modifiables dans PowerPoint ; les photographies sont intégrées comme images. Les fiches longues continuent sur une page supplémentaire.
+
+L'export ne relance pas l'analyse et n'envoie pas les photos à un nouveau service. Il nécessite les fichiers photo encore présents dans la session : après un rechargement, réimporter les photos avant d'exporter les diagnostics conservés. Le chiffrage reste une estimation IA indicative, sans attribution à un barème externe.
+
 ## Fiabilité dans le niveau gratuit
 
 - Le lot et les réessais individuels suivent le même rythme : un appel à la fois, puis au moins 15 secondes de pause. Les onglets du même navigateur sont coordonnés lorsque Web Locks est disponible. Ce contrôle ne coordonne pas d'autres appareils ni les appels provenant d'autres applications du même projet Google.

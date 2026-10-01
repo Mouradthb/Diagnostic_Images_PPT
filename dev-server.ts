@@ -63,7 +63,9 @@ async function startServer() {
   }
 
   const port = Number(process.env.PORT) || 3000;
-  app.listen(port, 'localhost', () => {
+  // Bind explicitly to IPv4: some browsers resolve localhost to 127.0.0.1 while
+  // Windows may otherwise bind this server only to the IPv6 loopback address.
+  app.listen(port, '127.0.0.1', () => {
     console.log(`Application locale : http://localhost:${port}`);
   });
 }
