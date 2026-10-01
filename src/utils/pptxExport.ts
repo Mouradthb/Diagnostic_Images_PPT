@@ -114,7 +114,7 @@ function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImag
   const priority = PRIORITY_COLORS[item.result!.priorite];
   addText(slide, `Rubrique ${priority.label}${continuation ? ' · suite' : ''}`,
     TABLE_X, 1.40, TABLE_W, 0.25, { fontSize: 12, bold: true });
-  slide.addShape('pentagon', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
+  slide.addShape('chevron', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
     line: { color: BORDER, width: 0.8 }, fill: { color: priority.fill } });
   addText(slide, priority.ribbon, TABLE_X + 0.07, 1.80, 1.43, 0.38,
     { fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
