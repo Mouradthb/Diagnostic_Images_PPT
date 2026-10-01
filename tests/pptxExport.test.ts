@@ -67,6 +67,13 @@ test('generated PPTX uses A4 portrait slides, correct fields, priority order and
   assert.equal(slides.length, 4);
   const contents = await Promise.all(slides.map((path) => packageFile.file(path)!.async('string')));
   assert.match(contents[0], /ENTRETIEN/);
+  const detailLineOne = 'Opérations d&apos;entretien courant et de maintenance préventive nécessaires';
+  const detailLineTwo = 'au maintien en bon état des équipements et du bâtiment';
+  const detailLineOneIndex = contents[0].indexOf(detailLineOne);
+  const detailLineTwoIndex = contents[0].indexOf(detailLineTwo);
+  assert.ok(detailLineOneIndex >= 0);
+  assert.ok(detailLineTwoIndex > detailLineOneIndex);
+  assert.match(contents[0].slice(detailLineOneIndex, detailLineTwoIndex), /<\/a:p><a:p>/);
   assert.match(contents[1], /CURATIF NIVEAU 1/);
   assert.match(contents[2], /TRAVAUX ÉNERGÉTIQUES/);
   assert.match(contents[3], /À CONFIRMER/);

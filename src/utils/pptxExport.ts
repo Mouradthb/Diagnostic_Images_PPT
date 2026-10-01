@@ -17,12 +17,12 @@ const INK = '171717';
 const BORDER = '2B2B2B';
 
 const PRIORITY_COLORS: Record<DiagnosticNiveau, { fill: string; text: string; label: string; ribbon: string; detail: string }> = {
-  Entretien: { fill: '54C4C5', text: 'FFFFFF', label: 'ENTRETIEN', ribbon: 'Entretien', detail: 'Opérations d\'entretien courant et de maintenance préventive nécessaires au maintien en bon état des équipements et du bâtiment.'},
-  'Signalement hors PPPT à vérifier': { fill: '0874BD', text: 'FFFFFF', label: 'SIGNALEMENT', ribbon: 'Signalement', detail: 'Périmètre à vérifier' },
-  'Curatif Niveau 1': { fill: 'D52234', text: 'FFFFFF', label: 'CURATIF NIVEAU 1', ribbon: 'Curatif Niveau 1', detail: 'Priorité immédiate à 2 ans' },
-  'Curatif Niveau 2': { fill: 'F97316', text: 'FFFFFF', label: 'CURATIF NIVEAU 2', ribbon: 'Curatif Niveau 2', detail: 'Impact modéré 3 à 5 ans' },
-  'Curatif Niveau 3': { fill: '00BE84', text: 'FFFFFF', label: 'CURATIF NIVEAU 3', ribbon: 'Curatif Niveau 3', detail: 'Impact faible 6 à 10 ans' },
-  'Travaux énergétiques': { fill: '4EAD2B', text: 'FFFFFF', label: 'TRAVAUX ÉNERGÉTIQUES', ribbon: 'Travaux\nénergétiques', detail: 'Performance et thermique' },
+  Entretien: { fill: '54C4C5', text: 'FFFFFF', label: 'ENTRETIEN', ribbon: 'Entretien', detail: 'Opérations d\'entretien courant et de maintenance préventive nécessaires\nau maintien en bon état des équipements et du bâtiment.'},
+  'Signalement hors PPPT à vérifier': { fill: '0874BD', text: 'FFFFFF', label: 'SIGNALEMENT', ribbon: 'Signalement', detail: 'Observations et points de vigilance relevés lors de la visite principalement\ndans les parties privatives.\nCes éléments sont présentés à titre informatif afin d\'attirer l\'attention des copropriétaires.'},
+  'Curatif Niveau 1': { fill: 'D52234', text: 'FFFFFF', label: 'CURATIF NIVEAU 1', ribbon: 'Curatif Niveau 1', detail: 'Curatif Niveau 1 (impact fort) – Travaux à effectuer sous 2 ans (2027-2028)\nInterventions urgentes nécessaires à la sécurité des occupants, à la préservation du bâti\nou à la continuité de service des équipements.'},
+  'Curatif Niveau 2': { fill: 'F97316', text: 'FFFFFF', label: 'CURATIF NIVEAU 2', ribbon: 'Curatif Niveau 2', detail: 'Curatif Niveau 2 (impact modéré) – Travaux à effectuer entre 3 et 5 ans\nInterventions à programmer afin d\'éviter une dégradation progressive\ndu bâtiment ou des équipements.'},
+  'Curatif Niveau 3': { fill: '00BE84', text: 'FFFFFF', label: 'CURATIF NIVEAU 3', ribbon: 'Curatif Niveau 3', detail: 'Curatif Niveau 3 (impact faible) – Travaux à effectuer entre 6 et 10 ans\nInterventions correctives à programmer afin d\'éviter une dégradation progressive\ndu bâtiment ou des équipements.'},
+  'Travaux énergétiques': { fill: '4EAD2B', text: 'FFFFFF', label: 'TRAVAUX ÉNERGÉTIQUES', ribbon: 'Travaux\nénergétiques', detail: 'Travaux visant à améliorer la performance énergétique du bâtiment,\nréduire les consommations d\'énergie et améliorer le confort thermique des occupants.'},
   'À confirmer / expertise nécessaire': { fill: 'FFC700', text: '594500', label: 'À CONFIRMER', ribbon: 'À confirmer', detail: 'Photo ou gravité incertaine' },
 };
 
@@ -108,19 +108,17 @@ function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImag
     altText: 'France Verte, bureau d’études fluides et thermiques' });
   slide.addShape('rect', { x: TABLE_X, y: 0.90, w: TABLE_W, h: 0.34,
     line: { color: '00B55A', transparency: 100 }, fill: { color: '00B55A' } });
-  addText(slide, 'IDENTIFICATION ET HIÉRARCHISATION DES TRAVAUX ET OBSERVATIONS',
+  addText(slide, '2.IDENTIFICATION ET HIÉRARCHISATION DES TRAVAUX ET OBSERVATIONS',
     TABLE_X + 0.14, 0.93, TABLE_W - 0.25, 0.26,
     { fontSize: 11.5, bold: true, color: 'FFFFFF' });
   const priority = PRIORITY_COLORS[item.result!.priorite];
-  addText(slide, `Rubrique ${priority.label}${continuation ? ' · suite' : ''}`,
-    TABLE_X, 1.40, TABLE_W, 0.25, { fontSize: 12, bold: true });
   slide.addShape('chevron', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
     line: { color: BORDER, width: 0.8 }, fill: { color: priority.fill } });
   addText(slide, priority.ribbon, TABLE_X + 0.07, 1.80, 1.43, 0.38,
     { fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
       bold: true, color: priority.text, align: 'center', wrap: true });
-  addText(slide, priority.detail, TABLE_X + 1.99, 1.82, TABLE_W - 2.05, 0.34,
-    { fontSize: 10.2, bold: true });
+  addText(slide, priority.detail, TABLE_X + 1.99, 1.48, TABLE_W - 2.05, 0.90,
+    { fontSize: 8.3, bold: true, valign: 'top', wrap: true, lineSpacingMultiple: 1.0 });
 
   const col1 = 0.80;
   const col3 = 2.42;
