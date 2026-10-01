@@ -277,7 +277,7 @@ export async function renderDiagnosticPptx(
     addIllustration(slide, photo.data, photo.width, photo.height, y, number);
   }
   slides.forEach((slide, index) => {
-    addText(slide, 'Diagnostic Technique Bâtiment · France Verte',
+    addText(slide, 'Copropriété ABCD XYZ',
       2.42, PAGE_H - 0.33, 3.5, 0.16,
       { fontSize: 8.3, align: 'center', color: '777777' });
     addText(slide, String(index + 1), PAGE_W - TABLE_X - 0.3,
