@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   FileDown,
@@ -35,6 +35,13 @@ import {
 import { countPriorityResults, filterDisplayedResults } from './utils/resultFilter';
 import { LegendBar } from './components/LegendBar';
 import { ResultCard } from './components/ResultCard';
+import { Part1ReportForm } from './part1/Part1ReportForm';
+import { createEmptyPart1ReportData } from './part1/reportData';
+import {
+  PART1_REQUIRED_FIELD_PATHS,
+  PART1_REQUIRED_VISUAL_ROLES,
+  validatePart1ReportData,
+} from './part1/reportDataValidation';
 
 interface AppProps {
   uid: string;
@@ -131,6 +138,8 @@ async function requestAnalysis(
 }
 
 export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
+  const [activeWorkspace, setActiveWorkspace] = useState<'part1' | 'diagnostics'>('part1');
+  const [part1Data, setPart1Data] = useState(createEmptyPart1ReportData);
   const [items, setItems] = useState<InspectionImageItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -332,6 +341,11 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const visibleDiagnosticCount = visibleResults.filter(
     (item) => item.status === 'completed' && item.result,
   ).length;
+  const part1Validation = useMemo(() => validatePart1ReportData(part1Data), [part1Data]);
+  const part1RequiredCount = PART1_REQUIRED_FIELD_PATHS.length + PART1_REQUIRED_VISUAL_ROLES.length;
+  const part1CompletedCount = part1RequiredCount - part1Validation.issues.filter(
+    (issue) => issue.code === 'champ_requis',
+  ).length;
 
   const remainingText = remainingCount === 0
     ? 'Toutes les photos sont analysées.'
@@ -388,6 +402,33 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
           </div>
         </header>
 
+        <nav className="fv-report-nav" aria-label="Espaces de travail du rapport">
+          <button
+            type="button"
+            onClick={() => setActiveWorkspace('part1')}
+            className={'fv-report-nav-button' + (activeWorkspace === 'part1' ? ' is-active' : '')}
+            aria-current={activeWorkspace === 'part1' ? 'page' : undefined}
+          >
+            01 · Informations du rapport <span className="fv-report-nav-count">{part1CompletedCount}/{part1RequiredCount}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveWorkspace('diagnostics')}
+            className={'fv-report-nav-button' + (activeWorkspace === 'diagnostics' ? ' is-active' : '')}
+            aria-current={activeWorkspace === 'diagnostics' ? 'page' : undefined}
+          >
+            02 · Diagnostics photo
+          </button>
+        </nav>
+
+        {activeWorkspace === 'part1' ? (
+          <Part1ReportForm
+            data={part1Data}
+            validation={part1Validation}
+            onChange={setPart1Data}
+            onOpenDiagnostics={() => setActiveWorkspace('diagnostics')}
+          />
+        ) : (
         <main className="fv-layout">
           <aside className="fv-sidebar">
             <section className="fv-upload-section" aria-labelledby="import-heading">
@@ -620,6 +661,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
             </div>
           </section>
         </main>
+        )}
       </div>
     </div>
   );

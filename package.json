@@ -8,7 +8,7 @@
     "build": "vite build",
     "start": "tsx dev-server.ts",
     "preview": "vite preview",
-    "test": "node --import tsx --test tests/security.test.ts tests/analysisRetry.test.ts tests/analysisControl.test.ts tests/diagnosticCache.test.ts tests/resultFilter.test.ts tests/pptxExport.test.ts",
+    "test": "node --import tsx --test tests/security.test.ts tests/analysisRetry.test.ts tests/analysisControl.test.ts tests/diagnosticCache.test.ts tests/resultFilter.test.ts tests/pptxExport.test.ts tests/part1ReportData.test.ts tests/part1Pptx.test.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
