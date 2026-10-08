@@ -198,7 +198,12 @@ async function readBlobAsDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-async function preparePhoto(file: File): Promise<{ data: string; width: number; height: number }> {
+/**
+ * Prepares Part 2 illustrations for its autonomous export and for the unified
+ * report. Keeping this implementation shared preserves its established crop
+ * and compression behaviour in both outputs.
+ */
+export async function prepareDiagnosticPhotoForPptx(file: File): Promise<{ data: string; width: number; height: number }> {
   const bitmap = await createImageBitmap(file);
   try {
     const maxSide = 2200;
@@ -223,28 +228,47 @@ interface PreparedPhoto {
   height: number;
 }
 
-/** Creates native PowerPoint text and shapes; asset loading stays separate from layout. */
-export async function renderDiagnosticPptx(
+export interface DiagnosticPriorityStart {
+  priority: DiagnosticNiveau;
+  page: number;
+}
+
+export interface AppendedDiagnosticSlides {
+  slides: Slide[];
+  priorityStarts: DiagnosticPriorityStart[];
+}
+
+export interface DiagnosticAppendOptions {
+  /** Defaults preserve the autonomous Part 2 export. */
+  firstPageNumber?: number;
+  coproprieteName?: string;
+}
+
+/** Appends Part 2 to an A4 presentation without serializing it. */
+export async function appendDiagnosticSlides(
+  pptx: Presentation,
   items: readonly InspectionImageItem[],
   logoData: string,
   loadPhoto: (file: File) => Promise<PreparedPhoto>,
-): Promise<Blob> {
+  options: DiagnosticAppendOptions = {},
+): Promise<AppendedDiagnosticSlides> {
   const exportable = getExportableDiagnostics(items);
   if (exportable.length === 0) throw new Error('Aucun diagnostic terminé et à jour à exporter.');
-  const pptx = new pptxgen();
-  pptx.defineLayout({ name: 'A4_PORTRAIT', width: PAGE_W, height: PAGE_H });
-  pptx.layout = 'A4_PORTRAIT';
-  pptx.author = 'France Verte';
-  pptx.subject = 'Diagnostics techniques du bâtiment';
-  pptx.title = 'Diagnostic Technique Bâtiment';
-  pptx.theme = { headFontFace: FONT, bodyFontFace: FONT };
+  const firstPageNumber = options.firstPageNumber ?? 1;
+  if (!Number.isInteger(firstPageNumber) || firstPageNumber < 1) {
+    throw new Error('Numéro de première page des diagnostics invalide.');
+  }
+  const coproprieteName = options.coproprieteName ?? 'Copropriété ABCD XYZ';
+  if (!coproprieteName.trim()) throw new Error('Nom de copropriété invalide.');
   const slides: Slide[] = [];
+  const priorityStarts: DiagnosticPriorityStart[] = [];
 
   for (let index = 0; index < exportable.length; index += 1) {
     const item = exportable[index];
     const result = item.result!;
     const number = index + 1;
     const startsPriority = index === 0 || exportable[index - 1].result!.priorite !== result.priorite;
+    if (startsPriority) priorityStarts.push({ priority: result.priorite, page: firstPageNumber + slides.length });
     let { slide, y } = addPageHeader(pptx, slides, item, number, logoData, startsPriority);
     const fields = [
       { label: 'Localisation', text: result.localisation },
@@ -277,13 +301,30 @@ export async function renderDiagnosticPptx(
     addIllustration(slide, photo.data, photo.width, photo.height, y, number);
   }
   slides.forEach((slide, index) => {
-    addText(slide, 'Copropriété ABCD XYZ',
+    addText(slide, coproprieteName,
       2.42, PAGE_H - 0.33, 3.5, 0.16,
       { fontSize: 8.3, align: 'center', color: '777777' });
-    addText(slide, String(index + 1), PAGE_W - TABLE_X - 0.3,
+    addText(slide, String(firstPageNumber + index), PAGE_W - TABLE_X - 0.3,
       PAGE_H - 0.33, 0.3, 0.16,
       { fontSize: 8.3, align: 'right', color: '777777' });
   });
+  return { slides, priorityStarts };
+}
+
+/** Creates native PowerPoint text and shapes; asset loading stays separate from layout. */
+export async function renderDiagnosticPptx(
+  items: readonly InspectionImageItem[],
+  logoData: string,
+  loadPhoto: (file: File) => Promise<PreparedPhoto>,
+): Promise<Blob> {
+  const pptx = new pptxgen();
+  pptx.defineLayout({ name: 'A4_PORTRAIT', width: PAGE_W, height: PAGE_H });
+  pptx.layout = 'A4_PORTRAIT';
+  pptx.author = 'France Verte';
+  pptx.subject = 'Diagnostics techniques du bâtiment';
+  pptx.title = 'Diagnostic Technique Bâtiment';
+  pptx.theme = { headFontFace: FONT, bodyFontFace: FONT };
+  await appendDiagnosticSlides(pptx, items, logoData, loadPhoto);
   const output = await pptx.write({ outputType: 'blob', compression: true });
   if (!(output instanceof Blob)) throw new Error('La génération du fichier PPTX a échoué.');
   return output;
@@ -297,5 +338,5 @@ export async function buildDiagnosticPptx(items: readonly InspectionImageItem[])
   const logoResponse = await fetch('/france-verte-logo.png');
   if (!logoResponse.ok) throw new Error('Le logo France Verte est indisponible.');
   const logoData = await readBlobAsDataUrl(await logoResponse.blob());
-  return renderDiagnosticPptx(items, logoData, preparePhoto);
+  return renderDiagnosticPptx(items, logoData, prepareDiagnosticPhotoForPptx);
 }

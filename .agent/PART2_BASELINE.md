@@ -2,6 +2,8 @@
 
 Relevé sur `main` au commit `b9a1433` le 2 octobre 2026. L'utilisateur a confirmé le fonctionnement de l'export Partie 2. Ce document décrit les comportements visibles dans le code et les tests ; il ne transforme pas cette pré-analyse photo en PPPT réglementaire complet.
 
+Cette référence historique reste la baseline à protéger pendant l'intégration du rapport. La cible et l'ordre des travaux sont décrits dans `REPORT_ASSEMBLY_PLAN.md` : les Parties 1, 2 et 3 sont désormais assemblées et l'export final contrôlé est exposé dans l'espace 03. Le bouton décrit ci-dessous reste un export autonome de Partie 2. La Partie 3 lit déjà `getExportableDiagnostics` en lecture seule pour son tableau curatif ; cette relation ne modifie ni la sélection, ni l'ordre, ni le rendu de la Partie 2.
+
 ## Fonction, entrées et sortie
 
 La Partie 2 affiche une fiche par photo analysée et peut exporter un PPTX A4 portrait composé des diagnostics terminés et à jour. L'interface affiche les résultats sous forme de tableau dans `ResultCard`. Le bouton « Exporter tout en PPTX » dans `App` lance l'export autonome dans le navigateur.
@@ -33,6 +35,8 @@ Pour l'export, `App.handleExportPptx` charge `buildDiagnosticPptx(items)` à la 
 
 `getExportableDiagnostics` garde uniquement `status === 'completed'`, avec résultat présent et `!isResultOutdated(item)`. Il trie selon `DIAGNOSTIC_NIVEAUX` en préservant l'ordre d'import dans une même priorité : **Entretien → Signalement hors PPPT à vérifier → Curatif Niveau 1 → Curatif Niveau 2 → Curatif Niveau 3 → Travaux énergétiques → À confirmer / expertise nécessaire**. Les catégories absentes ne produisent aucune diapositive. « À confirmer » est placé en dernier ; le code ne propose pas de reclassement interactif dans PowerPoint.
 
+Pour l'assemblage interne, `appendDiagnosticSlides` réutilise exactement cette sélection et ce rendu dans une présentation fournie. Il retourne les pages de départ de chaque priorité présente. Le nom de copropriété et le numéro de première page peuvent être fournis par l'assembleur ; sans options, le pied de page et la numérotation historiques de l'export autonome sont conservés. `renderDiagnosticPptx` et `buildDiagnosticPptx` gardent leurs signatures et leur sortie `Blob`.
+
 ## Présentation produite actuellement
 
 - `renderDiagnosticPptx` instancie une présentation `pptxgenjs` et définit A4 portrait à **7559675 × 10691813 EMU**. Polices, couleurs, tableau et positions sont codés dans `pptxExport.ts` ; le texte et les formes restent des objets PowerPoint modifiables.
@@ -40,7 +44,7 @@ Pour l'export, `App.handleExportPptx` charge `buildDiagnosticPptx(items)` à la 
 - `addBodyRow` dessine Localisation, État / Observations et Recommandations pour Entretien/Signalement, ou Travaux à effectuer pour les autres. `addCostRow` ajoute le chiffrage aux autres priorités : fourchette TTC si le minimum est positif, sinon « À déterminer après visite et définition des travaux ». Une estimation chiffrée porte la mention « Estimation IA indicative » sans attribution à Bati Chiffrage.
 - `addIllustration` ajoute la photo dans une ligne Illustration pour **toutes** les priorités. `preparePhoto` décode le `File`, réduit le côté maximal à 2200 px, dessine sur fond blanc et encode en JPEG qualité 0,88. Les images sont intégrées au PPTX.
 - `wrapLines` / `measureLine` calculent les lignes et la place disponible. Un long champ est scindé avec « (suite) » sur de nouvelles diapositives ; une place insuffisante avant le coût ou l'image crée aussi une continuation. Le pied de page et le numéro sont ajoutés après la création des diapositives.
-- Actuellement le pied de page contient le texte **figé** `Copropriété ABCD XYZ` et la numérotation repart à 1 pour l'export autonome. `N°` est le rang global des diagnostics exportés, non un compteur remis à 1 par priorité. La première ligne du titre de section est également figée. Ces faits comptent pour l'assemblage futur.
+- Actuellement le pied de page contient le texte **figé** `Copropriété ABCD XYZ` et la numérotation repart à 1 pour l'export autonome. `N°` est le rang global des diagnostics exportés, non un compteur remis à 1 par priorité. La première ligne du titre de section est également figée. Ces faits restent à préserver dans l'export autonome et sont paramétrés par l'assemblage interne.
 
 ## Modèle PPT de référence et dépendances
 
@@ -54,9 +58,9 @@ L'analyse dépend de `@google/genai` côté serveur, de Firebase/Firebase Admin 
 
 `tests/pptxExport.test.ts` couvre : ordre strict et stable ; exclusion des éléments incomplets/périmés ; dimensions A4 et texte éditable ; champs selon priorité, coûts indicatifs et illustrations ; chevron/description une seule fois par catégorie ; continuation d'un texte long. `tests/resultFilter.test.ts` couvre des comportements d'affichage, dont étiquettes/couleurs et absence des métadonnées inutiles dans l'en-tête des fiches. `tests/security.test.ts` vérifie des contraintes du contrat de résultat ; les autres tests protègent cache et reprise.
 
-À ce jour, les tests PPTX chargent le véritable logo public mais substituent ce même visuel aux photos de diagnostic ; ils inspectent surtout le XML. Ils ne prouvent pas, à eux seuls, la qualité visuelle dans PowerPoint, la fidélité pixel à pixel au modèle, tous les ratios de photo, les extrêmes de longueur ni le rendu d'un rapport unifié. Il n'existe pas de test d'assemblage Partie 1 + Partie 2, puisque cet assemblage n'existe pas encore.
+À ce jour, les tests PPTX chargent le véritable logo public mais substituent ce même visuel aux photos de diagnostic ; ils inspectent surtout le XML. Ils ne prouvent pas, à eux seuls, la qualité visuelle dans PowerPoint, la fidélité pixel à pixel au modèle, tous les ratios de photo, les extrêmes de longueur ni le rendu d'un rapport unifié. Le test d'assemblage interne Partie 1 → Partie 2 → Partie 3 vérifie les pages, le sommaire, les pieds de page et les priorités ; il ne remplace pas un contrôle avec des photos réelles dans PowerPoint.
 
-Vérification de l'état documentaire du 2 octobre 2026 : `tsc --noEmit` réussi, **67 tests réussis** et build Vite réussi. Aucun essai sur des données Gemini réelles ni inspection manuelle d'un nouveau PPTX n'a été effectué pour cette tâche de documentation.
+Vérification historique de l'état documentaire du 2 octobre 2026 : `tsc --noEmit` réussi, **67 tests réussis** et build Vite réussi. Ce nombre ne désigne pas la taille actuelle de la suite. Aucun essai sur des données Gemini réelles ni inspection manuelle d'un nouveau PPTX n'a été effectué pour cette tâche de documentation.
 
 ## Invariants à préserver et zones fragiles
 
@@ -71,4 +75,4 @@ Points de vigilance :
 5. Les images ne persistent pas avec les résultats. L'export après rechargement suppose la réimportation des fichiers ; ajouter d'autres visuels à la Partie 1 impose un cycle de vie explicite.
 6. Les mesures de texte reposent sur `canvas` ou une estimation de secours. Les textes longs et polices de l'environnement PowerPoint restent à vérifier visuellement après tout changement de mise en page.
 7. Les règles d'estimation et de cohérence du contrat sont proches dans `api/_lib/analyze.ts` et `diagnosticCache.ts` ; toute évolution doit maintenir la validation des données conservées.
-8. Les années `2027-2028` dans la description de Curatif Niveau 1 sont codées en dur dans `PRIORITY_COLORS`. Elles ne sont pas calculées depuis la date du rapport et devront être traitées explicitement lors d'un rapport unifié daté.
+8. Les années `2027-2028` dans la description de Curatif Niveau 1 sont codées en dur dans `PRIORITY_COLORS`. Elles ne sont pas calculées depuis la date du rapport et exigent un arbitrage métier explicite avant toute mise à disposition d'un rapport unifié daté.

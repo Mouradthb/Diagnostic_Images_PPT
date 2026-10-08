@@ -42,6 +42,12 @@ import {
   PART1_REQUIRED_VISUAL_ROLES,
   validatePart1ReportData,
 } from './part1/reportDataValidation';
+import { Part3ReportForm } from './part3/Part3ReportForm';
+import { createEmptyPart3ReportData, PART3_REQUIRED_STATUS_PATHS } from './part3/reportData';
+import { validatePart3ReportData } from './part3/reportDataValidation';
+import { buildPart3CurativeSummary } from './part3/curativeSummary';
+import { FinalReportExportPanel } from './components/FinalReportExportPanel';
+import { firstFinalReportBlocker, getFinalReportReadiness } from './report/finalReportReadiness';
 
 interface AppProps {
   uid: string;
@@ -138,12 +144,17 @@ async function requestAnalysis(
 }
 
 export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
-  const [activeWorkspace, setActiveWorkspace] = useState<'part1' | 'diagnostics'>('part1');
+  const [activeWorkspace, setActiveWorkspace] = useState<'part1' | 'diagnostics' | 'part3'>('part1');
   const [part1Data, setPart1Data] = useState(createEmptyPart1ReportData);
+  const [part3Data, setPart3Data] = useState(createEmptyPart3ReportData);
   const [items, setItems] = useState<InspectionImageItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState('');
+  const [isFinalExporting, setIsFinalExporting] = useState(false);
+  const [finalExportError, setFinalExportError] = useState('');
+  const [part3ValidationRequested, setPart3ValidationRequested] = useState(false);
+  const [part3TransientInputValid, setPart3TransientInputValid] = useState(true);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -346,13 +357,25 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const part1CompletedCount = part1RequiredCount - part1Validation.issues.filter(
     (issue) => issue.code === 'champ_requis',
   ).length;
+  const part3Validation = useMemo(() => validatePart3ReportData(part3Data), [part3Data]);
+  const part3CompletedCount = PART3_REQUIRED_STATUS_PATHS.length - part3Validation.issues.filter(
+    (issue) => issue.code === 'champ_requis',
+  ).length;
+  const finalReportReadiness = useMemo(() => getFinalReportReadiness({
+    part1Data,
+    part3Data,
+    items,
+    isAnalyzing,
+    hasPart3TransientInputError: !part3TransientInputValid,
+  }), [part1Data, part3Data, items, isAnalyzing, part3TransientInputValid]);
+  const curativeSummary = useMemo(() => buildPart3CurativeSummary(items), [items]);
 
   const remainingText = remainingCount === 0
     ? 'Toutes les photos sont analysées.'
     : remainingCount + ' photo' + (remainingCount > 1 ? 's' : '') + ' à analyser, actualiser ou réessayer.';
 
   const handleExportPptx = async () => {
-    if (isExporting || isAnalyzing || exportableCount === 0) return;
+    if (isExporting || isFinalExporting || isAnalyzing || exportableCount === 0) return;
     setIsExporting(true);
     setExportError('');
     try {
@@ -370,6 +393,47 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
       setExportError(error instanceof Error ? error.message : 'L’export PPTX a échoué. Réessayez.');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleFinalReportExport = async () => {
+    if (isFinalExporting) return;
+    setPart3ValidationRequested(true);
+    setFinalExportError('');
+    if (isExporting) {
+      setFinalExportError('Attendez la fin de l’export autonome des diagnostics avant de générer le rapport complet.');
+      return;
+    }
+
+    const readiness = getFinalReportReadiness({
+      part1Data,
+      part3Data,
+      items,
+      isAnalyzing,
+      hasPart3TransientInputError: !part3TransientInputValid,
+    });
+    if (!readiness.isReady) {
+      setFinalExportError(firstFinalReportBlocker(readiness)?.message ?? 'Le rapport PPPT complet ne peut pas encore être généré.');
+      return;
+    }
+
+    const snapshot = { part1Data, part3Data, items: [...items] };
+    setIsFinalExporting(true);
+    try {
+      const { buildUnifiedPpptx, createUnifiedPpptxFileName } = await import('./report/finalReportExport');
+      const file = await buildUnifiedPpptx(snapshot);
+      const url = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = createUnifiedPpptxFileName(snapshot.part1Data);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error) {
+      setFinalExportError(error instanceof Error ? error.message : 'La génération du rapport PPPT complet a échoué. Réessayez.');
+    } finally {
+      setIsFinalExporting(false);
     }
   };
 
@@ -419,6 +483,14 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
           >
             02 · Diagnostics photo
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveWorkspace('part3')}
+            className={'fv-report-nav-button' + (activeWorkspace === 'part3' ? ' is-active' : '')}
+            aria-current={activeWorkspace === 'part3' ? 'page' : undefined}
+          >
+            03 · Documentation et synthèse <span className="fv-report-nav-count">{part3CompletedCount}/{PART3_REQUIRED_STATUS_PATHS.length}</span>
+          </button>
         </nav>
 
         {activeWorkspace === 'part1' ? (
@@ -427,6 +499,26 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
             validation={part1Validation}
             onChange={setPart1Data}
             onOpenDiagnostics={() => setActiveWorkspace('diagnostics')}
+          />
+        ) : activeWorkspace === 'part3' ? (
+          <Part3ReportForm
+            data={part3Data}
+            validation={part3Validation}
+            onChange={setPart3Data}
+            showValidation={part3ValidationRequested}
+            onTransientValidityChange={setPart3TransientInputValid}
+            footer={(
+              <FinalReportExportPanel
+                readiness={finalReportReadiness}
+                curativeSummary={curativeSummary}
+                isExporting={isFinalExporting}
+                isAnotherExporting={isExporting}
+                error={finalExportError}
+                onOpenWorkspace={setActiveWorkspace}
+                onRequestPart3Validation={() => setPart3ValidationRequested(true)}
+                onExport={() => void handleFinalReportExport()}
+              />
+            )}
           />
         ) : (
         <main className="fv-layout">
@@ -608,7 +700,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
               <div className="fv-diagnostics-pills">
                 {exportableCount > 0 && (
                   <button type="button" className="fv-export-button" onClick={handleExportPptx}
-                    disabled={isAnalyzing || isExporting}
+                    disabled={isAnalyzing || isExporting || isFinalExporting}
                     title={`Exporter ${exportableCount} diagnostic${exportableCount > 1 ? 's' : ''} terminé${exportableCount > 1 ? 's' : ''} et à jour`}>
                     {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
                     {isExporting ? 'Création du PPTX…' : 'Exporter tout en PPTX'}

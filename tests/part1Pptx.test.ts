@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { File as NodeFile } from 'node:buffer';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import test from 'node:test';
 import JSZip from 'jszip';
 import pptxgen from 'pptxgenjs';
+import type { DiagnosticNiveau, InspectionImageItem } from '../src/types.ts';
+import { assemblePart1Part2Internally } from '../src/report/part1Part2Assembly.ts';
+import {
+  assemblePart1Part2Part3Internally,
+  serializeInternalPart1Part2Part3Pptx,
+} from '../src/report/part1Part2Part3Assembly.ts';
 import {
   appendPart1AdministrativeSlides,
   appendPart1ContentsSlides,
@@ -18,6 +24,10 @@ import {
   type Part1ReportData,
   type RoleVisuelPartie1,
 } from '../src/part1/reportData.ts';
+import {
+  type Part3PresentationAssets,
+} from '../src/part3/part3Pptx.ts';
+import { createEmptyPart3ReportData, type Part3ReportData } from '../src/part3/reportData.ts';
 
 const REFERENCE = new URL('../docs/PPPT PART1+PART2 .pptx', import.meta.url);
 const VISUAL_FIXTURES = [
@@ -31,8 +41,12 @@ function dataUrl(mimeType: string, bytes: Buffer): string {
   return `data:${mimeType};base64,${bytes.toString('base64')}`;
 }
 
+function publicAsset(path: string, mimeType: string): string {
+  return dataUrl(mimeType, readFileSync(new URL(path, import.meta.url)));
+}
+
 function publicPng(path: string): string {
-  return dataUrl('image/png', readFileSync(new URL(path, import.meta.url)));
+  return publicAsset(path, 'image/png');
 }
 
 function fileFromBytes(bytes: Buffer, role: RoleVisuelPartie1): File {
@@ -100,6 +114,37 @@ async function completeFixture(): Promise<{
   return { data, assets, visualBytes };
 }
 
+function completePart3Data(): Part3ReportData {
+  const data = createEmptyPart3ReportData();
+  const tables = Object.values(data.documentation) as Array<Record<string, { statut: 'transmis' | null; commentaire: string | null }>>;
+  for (const table of tables) {
+    for (const row of Object.values(table)) row.statut = 'transmis';
+  }
+  return data;
+}
+
+function part3Assets(): Part3PresentationAssets {
+  return {
+    logoData: publicPng('../public/france-verte-logo.png'),
+    dpeVisuals: {
+      etiquette_energetique_etat_initial: { data: publicPng('../public/part3/image3.png') },
+      etiquette_energetique_scenario_renovation_ambitieux: { data: publicPng('../public/part3/image4.png') },
+    },
+    staticAssets: {
+      defibrillatorData: publicPng('../public/part3/image2.png'),
+      dpeClassDData: publicPng('../public/part3/image3.png'),
+      dpeClassEData: publicPng('../public/part3/image4.png'),
+      dpeClassFData: publicPng('../public/part3/image5.png'),
+      dpeClassGData: publicPng('../public/part3/image6.png'),
+      maPrimeRenovLogoData: publicPng('../public/part3/image7.png'),
+      maPrimeRenovTableData: publicPng('../public/part3/image8.png'),
+      ceeLogoData: publicPng('../public/part3/image9.png'),
+      ecoPtzData: publicAsset('../public/part3/image10.jpg', 'image/jpeg'),
+      tvaData: publicAsset('../public/part3/image11.jpeg', 'image/jpeg'),
+    },
+  };
+}
+
 async function packageFor(pptx: pptxgen): Promise<JSZip> {
   const output = await pptx.write({ outputType: 'nodebuffer' });
   return JSZip.loadAsync(output);
@@ -110,6 +155,15 @@ async function slideXml(zip: JSZip): Promise<string[]> {
     .filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path))
     .sort((left, right) => Number(left.match(/\d+/)![0]) - Number(right.match(/\d+/)![0]));
   return Promise.all(paths.map((path) => zip.file(path)!.async('string')));
+}
+
+async function assertContentTypeOverridesTargetExistingParts(zip: JSZip): Promise<void> {
+  const contentTypes = await zip.file('[Content_Types].xml')!.async('string');
+  const partNames = Array.from(contentTypes.matchAll(/<Override\b[^>]*\bPartName="([^"]+)"[^>]*\/>/g))
+    .map(([, partName]) => partName.replace(/^\//, ''));
+  for (const partName of partNames) {
+    assert.ok(zip.file(partName), `L’override Open XML référence une partie absente : ${partName}`);
+  }
 }
 
 test('Part 1 rejects incomplete data before appending any slide', async () => {
@@ -240,6 +294,28 @@ test('Part 1 contents list its subtitles and retain only supplied later-section 
   assert.doesNotMatch(slides.join('\n'), /LE COTE SQUARE|Rive de Gier/);
 });
 
+test('Part 1 introduction keeps the reference typography and flowing scope layout', async () => {
+  const { data, assets } = await completeFixture();
+  const pptx = new pptxgen();
+  appendPart1IntroductionSlides(pptx, data, assets.logoData, 6);
+
+  const slides = await slideXml(await packageFor(pptx));
+  const scope = slides[1];
+  assert.match(scope, /<a:bodyPr[^>]*anchor="t"[^>]*><a:spAutoFit\/><\/a:bodyPr>/);
+  assert.doesNotMatch(scope, /<a:bodyPr[^>]*anchor="t"[^>]*><a:normAutofit\/>/);
+  assert.match(scope, /<a:pPr[^>]*algn="just"/);
+  assert.match(scope, /sz="1300" b="1"/);
+  assert.match(scope, /sz="1100"/);
+  assert.match(scope, /u="sng"/);
+  assert.match(scope, /<a:buChar char="&#x2022;"\/>/);
+  assert.match(scope, /marL="150368" indent="-150368"/);
+
+  const priorities = slides[2];
+  assert.match(priorities, /<a:off x="541080" y="1203480"/);
+  assert.match(priorities, /<a:off x="541080" y="4195080"/);
+  assert.match(priorities, /sz="1140" b="1"[\s\S]*?<a:t>Entretien<\/a:t>/);
+});
+
 test('Part 1 contents recalculate introduction pages when later entries require a second contents page', () => {
   const plan = planPart1Contents(5, Array.from({ length: 14 }, (_, index) => ({
     label: `2.${index + 1} Rubrique produite`,
@@ -275,4 +351,198 @@ test('Part 1 contents add a second page only when entries exceed available rows'
   assert.match(slides[1], /Rubrique 21/);
   assert.doesNotMatch(slides[1], /Rubrique 20/);
   assert.throws(() => appendPart1ContentsSlides(pptx, data, assets.logoData, [], 5));
+});
+
+function diagnostic(id: string, priority: DiagnosticNiveau, observation = `Observation ${id}.`): InspectionImageItem {
+  return {
+    id, file: {} as File, fileName: `${id}.jpeg`, fileSize: 100,
+    previewUrl: 'blob:test', status: 'completed',
+    localisation: 'non renseignée', analyzedLocalisation: 'non renseignée',
+    result: {
+      statut_analyse: 'constat photographique indicatif', priorite: priority,
+      famille: `Famille ${id}`, localisation: 'Parties communes', perimetre: 'indéterminé',
+      etat_observations: observation, intervention: `Intervention ${id}.`,
+      cout_estime_min_ttc_eur: priority.startsWith('Curatif') ? 1000 : 0,
+      cout_estime_max_ttc_eur: priority.startsWith('Curatif') ? 1500 : 0,
+      confiance: 'moyen',
+    },
+  };
+}
+
+test('internal Part 1 + Part 2 assembly uses real category starts and global pagination', async () => {
+  const { data, assets } = await completeFixture();
+  const longObservation = Array.from({ length: 110 }, (_, index) =>
+    `Observation ${index + 1} visible sur la photographie.`).join(' ');
+  const items = [
+    diagnostic('confirm', 'À confirmer / expertise nécessaire'),
+    diagnostic('curative', 'Curatif Niveau 1', longObservation),
+    diagnostic('maintenance-one', 'Entretien'),
+    diagnostic('maintenance-two', 'Entretien'),
+    diagnostic('ignored', 'Travaux énergétiques'),
+  ];
+  items[4].status = 'pending';
+  const report = await assemblePart1Part2Internally(data, assets, items,
+    async () => ({ data: assets.logoData, width: 238, height: 60 }));
+  if (process.env.PPPT_INTERNAL_PREVIEW_PATH) {
+    const preview = await report.presentation.write({ outputType: 'nodebuffer' });
+    if (!Buffer.isBuffer(preview)) throw new Error('Le PPTX d’essai n’est pas un Buffer.');
+    writeFileSync(process.env.PPPT_INTERNAL_PREVIEW_PATH, preview);
+  }
+  const zip = await packageFor(report.presentation);
+  const slides = await slideXml(zip);
+  assert.equal(slides.length, report.totalPages);
+  assert.match((await zip.file('ppt/presentation.xml')!.async('string')),
+    /<p:sldSz cx="7559675" cy="10691813"/);
+  assert.match(slides[0], new RegExp(`Ce rapport contient : ${report.totalPages} pages`));
+  assert.match(slides[4], /SOMMAIRE/);
+  assert.match(slides[4], /1\.1 Cadre réglementaire/);
+  assert.match(slides[4], /2\.1 Entretien/);
+  assert.match(slides[4], /2\.2 Curatif Niveau 1/);
+  assert.match(slides[4], /2\.3 À confirmer/);
+  assert.doesNotMatch(slides[4], /2\.4|Travaux énergétiques/);
+  assert.match(slides[5], /1\.1 Cadre réglementaire/);
+  assert.match(slides[7], /1\.5 Hiérarchisation/);
+
+  assert.deepEqual(report.priorityStarts.map(({ priority }) => priority), [
+    'Entretien', 'Curatif Niveau 1', 'À confirmer / expertise nécessaire',
+  ]);
+  assert.equal(report.priorityStarts[0].page, 9);
+  assert.equal(report.priorityStarts[1].page, 11);
+  assert.ok(report.priorityStarts[2].page > 12);
+  assert.deepEqual(report.contents.filter((entry) => entry.label.startsWith('2.'))
+    .map(({ page }) => page), [9, 9, 11, report.priorityStarts[2].page]);
+  assert.match(slides[8], /Famille maintenance-one|ENTRETIEN/);
+  assert.match(slides[9], /Famille maintenance-two|ENTRETIEN/);
+  assert.doesNotMatch(slides[9], /prst="chevron"/);
+  assert.match(slides[10], /Famille curative|CURATIF NIVEAU 1/);
+  assert.match(slides[10], /prst="chevron"/);
+  assert.match(slides[report.priorityStarts[2].page - 1], /À CONFIRMER/);
+  for (let index = 8; index < slides.length; index += 1) {
+    assert.match(slides[index], /Copropriété Résidence des Tilleuls/);
+    assert.doesNotMatch(slides[index], /Copropriété ABCD XYZ/);
+  }
+  assert.ok(slides.some((slide) => slide.includes('Observation 110')));
+  assert.equal(slides.filter((slide) => slide.includes('Illustrations')).length, 4);
+});
+
+test('internal Part 1 + Part 2 + Part 3 assembly keeps a single contents and global pagination', async () => {
+  const { data, assets, visualBytes } = await completeFixture();
+  const diagnosticPhoto = dataUrl('image/jpeg', visualBytes[0]);
+  const part3Data = completePart3Data();
+  part3Data.documentation.documentsReglementairesAdministratifs.assuranceCopropriete.commentaire = [
+    'Commentaire documentaire long à conserver lors de l’assemblage du rapport complet.',
+    ...Array.from({ length: 36 }, (_, index) => `Précision ${index + 1} transmise par le syndic et à vérifier par l’ingénieur.`),
+    'Fin du commentaire documentaire à conserver.',
+  ].join(' ');
+  const longObservation = Array.from({ length: 110 }, (_, index) =>
+    `Observation ${index + 1} visible sur la photographie.`).join(' ');
+  const items = [
+    diagnostic('confirm', 'À confirmer / expertise nécessaire'),
+    diagnostic('maintenance', 'Entretien'),
+    diagnostic('signalement', 'Signalement hors PPPT à vérifier'),
+    diagnostic('curative-1', 'Curatif Niveau 1', longObservation),
+    diagnostic('curative-2', 'Curatif Niveau 2'),
+    diagnostic('curative-3', 'Curatif Niveau 3'),
+    diagnostic('energetic', 'Travaux énergétiques'),
+  ];
+  const prioritiesBefore = items.map((item) => item.result?.priorite);
+
+  const report = await assemblePart1Part2Part3Internally(
+    data,
+    assets,
+    part3Data,
+    part3Assets(),
+    items,
+    async () => ({ data: diagnosticPhoto, width: 800, height: 600 }),
+  );
+  if (process.env.PPPT_INTERNAL_COMBINED_PREVIEW_PATH) {
+    const preview = await serializeInternalPart1Part2Part3Pptx(report);
+    writeFileSync(process.env.PPPT_INTERNAL_COMBINED_PREVIEW_PATH, Buffer.from(await preview.arrayBuffer()));
+  }
+  const serialized = await serializeInternalPart1Part2Part3Pptx(report);
+  const zip = await JSZip.loadAsync(await serialized.arrayBuffer());
+  await assertContentTypeOverridesTargetExistingParts(zip);
+  const slides = await slideXml(zip);
+  const contentsSlides = slides.slice(4, report.priorityStarts[0].page - 4);
+  const contentsText = contentsSlides.join('\n');
+
+  assert.equal(slides.length, report.totalPages);
+  assert.match((await zip.file('ppt/presentation.xml')!.async('string')),
+    /<p:sldSz cx="7559675" cy="10691813"/);
+  assert.match(slides[0], new RegExp(`Ce rapport contient : ${report.totalPages} pages`));
+  assert.ok(contentsSlides.length >= 3, 'The combined contents must reserve every required page.');
+  // A long Part 3 outline requires several contents pages. Each reserved page
+  // must retain the common Part 1 banner and the global footer, rather than
+  // being an unbranded continuation page.
+  contentsSlides.forEach((slide, index) => {
+    assert.match(slide, /SOMMAIRE/, `Le bandeau du sommaire manque à la page ${index + 1}.`);
+    assert.match(slide, /Copropriété Résidence des Tilleuls/,
+      `Le pied de page manque à la page ${index + 1} du sommaire.`);
+  });
+  assert.match(contentsText, /1\.1 Cadre réglementaire/);
+  assert.match(contentsText, /2\.1 Entretien/);
+  assert.match(contentsText, /2\.2 Signalement/);
+  assert.match(contentsText, /2\.3 Curatif Niveau 1/);
+  assert.match(contentsText, /2\.4 Curatif Niveau 2/);
+  assert.match(contentsText, /2\.5 Curatif Niveau 3/);
+  assert.match(contentsText, /2\.6 Travaux énergétiques/);
+  assert.match(contentsText, /2\.7 À confirmer/);
+  assert.match(contentsText, /3\. Évolutions réglementaires et normatives/);
+  assert.match(contentsText, /5\.1 Documents réglementaires et administratifs/);
+  assert.match(contentsText, /6\.2 Le diagnostic de performance énergétiques/);
+  assert.match(contentsText, /11\. Annexe/);
+
+  assert.deepEqual(report.priorityStarts.map(({ priority }) => priority), [
+    'Entretien',
+    'Signalement hors PPPT à vérifier',
+    'Curatif Niveau 1',
+    'Curatif Niveau 2',
+    'Curatif Niveau 3',
+    'Travaux énergétiques',
+    'À confirmer / expertise nécessaire',
+  ]);
+  assert.equal(report.part3Contents[0].label, '3. Évolutions réglementaires et normatives');
+  assert.equal(report.part3Contents[0].page, report.part3FirstPage);
+  assert.equal(report.contents.find((entry) => entry.label === report.part3Contents[0].label)?.page,
+    report.part3FirstPage);
+  assert.match(slides[report.part3FirstPage - 1], /3\.1 Décret thermostat/);
+  assert.match(slides[report.part3FirstPage - 2], /Copropriété Résidence des Tilleuls/);
+  assert.match(slides[report.part3FirstPage - 1], /Copropriété Résidence des Tilleuls/);
+  assert.doesNotMatch(slides.join('\n'), /Copropriété Copropriété|Copropriété ABCD XYZ|LE COTE SQUARE/);
+
+  const section51 = report.part3Contents.find((entry) => entry.label === '5.1 Documents réglementaires et administratifs');
+  const section52 = report.part3Contents.find((entry) => entry.label === '5.2 Diagnostics techniques obligatoires');
+  assert.ok(section51 && section52);
+  assert.ok(section52.page > section51.page + 1, 'A long documentary comment must shift the later Part 3 page.');
+  assert.match(slides[section52.page - 1], /5\.2 Diagnostics techniques obligatoires/);
+  assert.ok(slides.some((slide) => slide.includes('Observation 110')));
+  assert.match(slides.join('\n'), /Étiquette DPE — État initial/);
+  assert.match(slides.join('\n'), /Étiquette DPE — Scénario de rénovation le plus ambitieux/);
+  assert.deepEqual(items.map((item) => item.result?.priorite), prioritiesBefore);
+});
+
+test('internal assembly rejects missing Part 1 data and no eligible diagnostics', async () => {
+  const { data, assets } = await completeFixture();
+  const loadPhoto = async () => ({ data: assets.logoData, width: 238, height: 60 });
+  await assert.rejects(assemblePart1Part2Internally(createEmptyPart1ReportData(), assets,
+    [diagnostic('maintenance', 'Entretien')], loadPhoto), /Partie 1 incomplète/);
+  await assert.rejects(assemblePart1Part2Internally(data, assets, [], loadPhoto),
+    /Aucun diagnostic terminé/);
+});
+
+test('internal Part 1 + Part 2 + Part 3 assembly rejects missing Part 3 data before rendering Part 2', async () => {
+  const { data, assets } = await completeFixture();
+  let photoWasRequested = false;
+  await assert.rejects(assemblePart1Part2Part3Internally(
+    data,
+    assets,
+    createEmptyPart3ReportData(),
+    part3Assets(),
+    [diagnostic('maintenance', 'Entretien')],
+    async () => {
+      photoWasRequested = true;
+      return { data: assets.logoData, width: 238, height: 60 };
+    },
+  ), /Partie 3 incomplète/);
+  assert.equal(photoWasRequested, false);
 });

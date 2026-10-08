@@ -42,6 +42,12 @@ export interface Part1ContentsPlan {
   firstIntroductionPage: number;
 }
 
+export interface ReservedPart1Contents {
+  slides: Slide[];
+  /** Fill the reserved pages once later sections have returned their actual starts. */
+  finalize: (entries: readonly Part1ContentsEntry[]) => void;
+}
+
 export const PART1_A4 = {
   width: 7559675 / 914400,
   height: 10691813 / 914400,
@@ -474,7 +480,61 @@ export function planPart1Contents(
   return { entries, pageCount, firstIntroductionPage };
 }
 
-/** Contents contain Part 1 entries plus only the later entries supplied by the final report composer. */
+function validateContentsEntries(entries: readonly Part1ContentsEntry[]): void {
+  if (entries.length === 0 || entries.some(({ label, page, level }) =>
+    !label.trim() || !Number.isInteger(page) || page < 1 || (level !== 0 && level !== 1))) {
+    throw new Error('Entrées du sommaire invalides.');
+  }
+}
+
+/** Reserve contents pages before Part 2 is rendered; fill their real page references afterwards. */
+export function reservePart1ContentsSlides(
+  pptx: pptxgen,
+  data: Part1ReportData,
+  logoData: string,
+  entryCount: number,
+  firstPageNumber: number,
+): ReservedPart1Contents {
+  assertReadyForSection(data, logoData, firstPageNumber);
+  if (!Number.isInteger(entryCount) || entryCount < 1) throw new Error('Nombre d’entrées du sommaire invalide.');
+  setA4Layout(pptx);
+  const slides: Slide[] = [];
+  for (let start = 0; start < entryCount; start += CONTENTS_ROWS_PER_PAGE) {
+    const slide = addSectionPage(pptx, logoData, 'SOMMAIRE');
+    addFooter(slide, data, firstPageNumber + slides.length);
+    slides.push(slide);
+  }
+  let finalized = false;
+  return {
+    slides,
+    finalize(entries) {
+      if (finalized) throw new Error('Le sommaire est déjà finalisé.');
+      validateContentsEntries(entries);
+      if (entries.length !== entryCount) throw new Error('Le nombre d’entrées du sommaire a changé.');
+      slides.forEach((slide, pageIndex) => {
+        const pageEntries = entries.slice(pageIndex * CONTENTS_ROWS_PER_PAGE,
+          (pageIndex + 1) * CONTENTS_ROWS_PER_PAGE);
+        pageEntries.forEach(({ label, page, level }, index) => {
+          const x = level === 0 ? 17.5 : 22.5;
+          const y = 40.8 + index * 10.45;
+          const fontSize = level === 0 ? 11.6 : 10.9;
+          const leaderStart = Math.min(177, x + label.length * (level === 0 ? 2.0 : 1.82) + 3);
+          if (leaderStart < 181) slide.addShape('line', {
+            x: mm(leaderStart), y: mm(y + 5.5), w: mm(181 - leaderStart), h: 0,
+            line: { color: INK, width: 0.9, dashType: 'sysDot' },
+          });
+          addText(slide, label.trim(), x, y, Math.min(164, leaderStart - x), 7.3,
+            { bold: level === 0, fontSize, valign: 'middle' });
+          addText(slide, String(page), 183.2, y, 9.5, 7.3,
+            { fontSize, bold: level === 0, align: 'right' });
+        });
+      });
+      finalized = true;
+    },
+  };
+}
+
+/** Contents contain Part 1 entries plus only the later entries supplied by the composer. */
 export function appendPart1ContentsSlides(
   pptx: pptxgen,
   data: Part1ReportData,
@@ -482,96 +542,152 @@ export function appendPart1ContentsSlides(
   entries: readonly Part1ContentsEntry[],
   firstPageNumber: number,
 ): Slide[] {
-  assertReadyForSection(data, logoData, firstPageNumber);
-  if (entries.length === 0 || entries.some(({ label, page, level }) =>
-    !label.trim() || !Number.isInteger(page) || page < 1 || (level !== 0 && level !== 1))) {
-    throw new Error('Entrées du sommaire invalides.');
-  }
-  setA4Layout(pptx);
-  const slides: Slide[] = [];
-  for (let start = 0; start < entries.length; start += CONTENTS_ROWS_PER_PAGE) {
-    const slide = addSectionPage(pptx, logoData, 'SOMMAIRE');
-    const pageEntries = entries.slice(start, start + CONTENTS_ROWS_PER_PAGE);
-    pageEntries.forEach(({ label, page, level }, index) => {
-      const x = level === 0 ? 17.5 : 22.5;
-      const y = 40.8 + index * 10.45;
-      const fontSize = level === 0 ? 11.6 : 10.9;
-      const leaderStart = Math.min(177, x + label.length * (level === 0 ? 2.0 : 1.82) + 3);
-      if (leaderStart < 181) slide.addShape('line', {
-        x: mm(leaderStart), y: mm(y + 5.5), w: mm(181 - leaderStart), h: 0,
-        line: { color: INK, width: 0.9, dashType: 'sysDot' },
-      });
-      addText(slide, label.trim(), x, y, Math.min(164, leaderStart - x), 7.3,
-        { bold: level === 0, fontSize, valign: 'middle' });
-      addText(slide, String(page), 183.2, y, 9.5, 7.3,
-        { fontSize, bold: level === 0, align: 'right' });
-    });
-    addFooter(slide, data, firstPageNumber + slides.length);
-    slides.push(slide);
-  }
-  return slides;
+  validateContentsEntries(entries);
+  const reserved = reservePart1ContentsSlides(pptx, data, logoData, entries.length, firstPageNumber);
+  reserved.finalize(entries);
+  return reserved.slides;
 }
 
-function addParagraph(slide: Slide, content: string, y: number, h: number, fontSize = 10.9): void {
-  addText(slide, content, 17.5, y, 175, h, { fontSize, valign: 'top' });
+type IntroductionTextOptions = NonNullable<Parameters<Slide['addText']>[1]>;
+
+interface IntroductionTextRun {
+  text: string;
+  options: IntroductionTextOptions;
+}
+
+interface IntroductionTextPart {
+  text: string;
+  options?: IntroductionTextOptions;
+}
+
+// PptxGenJS text boxes store this tuple as [left, right, bottom, top].
+// These are the native PowerPoint "Normal" margins used by the reference deck.
+const INTRODUCTION_TEXT_MARGINS: [number, number, number, number] = [7, 7, 3.5, 3.5];
+const INTRODUCTION_BULLET_INDENT = 11.84;
+
+function introductionParagraph(text: string, options: IntroductionTextOptions = {}): IntroductionTextRun {
+  return { text, options: { ...options, breakLine: true } };
+}
+
+function introductionBlank(): IntroductionTextRun {
+  return introductionParagraph('');
+}
+
+function introductionRichParagraph(parts: readonly IntroductionTextPart[]): IntroductionTextRun[] {
+  return parts.map((part, index) => ({
+    text: part.text,
+    options: { ...part.options, breakLine: index === parts.length - 1 },
+  }));
+}
+
+/**
+ * The reference PPT uses one editable, auto-sized text box per introduction
+ * page. Keep the text flowing inside that box: fixed individual boxes caused
+ * shrink-to-fit fonts and artificial vertical gaps in the exported report.
+ */
+function addIntroductionTextFlow(slide: Slide, text: IntroductionTextRun[],
+  x: number, y: number, w: number, h: number, fit: 'none' | 'resize' = 'resize'): void {
+  slide.addText(text, {
+    x: mm(x), y: mm(y), w: mm(w), h: mm(h),
+    fontFace: FONT, fontSize: 11, color: INK,
+    margin: INTRODUCTION_TEXT_MARGINS,
+    align: 'justify', valign: 'top', fit, wrap: true,
+  });
 }
 
 function addIntroductionFramework(slide: Slide): void {
-  addText(slide, '1.1 Cadre réglementaire du Projet de Plan Pluriannuel de Travaux (PPPT)',
-    17.5, 36, 175, 9.5, { fontSize: 13, bold: true });
-  addParagraph(slide, [
-    'Le présent document constitue un Projet de Plan Pluriannuel de Travaux (PPPT) établi conformément aux dispositions de la loi n° 2021-1104 du 22 août 2021, dite « Climat et Résilience », codifiées aux articles L.731-1 à L.731-5 et R.731-1 à R.731-3 du Code de la construction et de l’habitation, ainsi qu’à l’arrêté du 30 mars 2022 relatif au contenu du Projet de Plan Pluriannuel de Travaux.',
-    'Le PPPT est obligatoire pour les copropriétés de plus de 15 ans soumises au statut de la copropriété. Il a pour objectif d’anticiper les besoins de travaux sur les parties communes et les équipements collectifs de l’immeuble, de planifier leur réalisation sur une période de dix ans et d’en estimer les coûts prévisionnels.',
-    'Son élaboration repose sur l’analyse de l’état apparent du bâti, des équipements communs et des informations communiquées par le syndicat des copropriétaires ou son représentant. Elle prend également en compte le Diagnostic de Performance Énergétique (DPE) collectif et, lorsqu’il existe, le Diagnostic Technique Global (DTG).',
-    'Le PPPT répond à trois objectifs majeurs :\n•  Assurer la conservation et la pérennité du patrimoine immobilier ;\n•  Garantir la sécurité et le confort des occupants ;\n•  Favoriser l’amélioration de la performance énergétique du bâtiment.',
-    'Le projet présenté dans ce rapport constitue un outil d’aide à la décision permettant à la copropriété d’identifier les travaux à prévoir, de hiérarchiser les interventions et d’anticiper les investissements futurs.',
-    'Après sa présentation en assemblée générale, le PPPT pourra être adopté en tout ou partie par les copropriétaires. Une fois approuvé, il devient un Plan Pluriannuel de Travaux (PPT) et sert de référence pour la programmation des opérations à venir. Les travaux sont ensuite soumis au vote des copropriétaires selon les règles de majorité applicables à leur nature.',
-    'Conformément à la réglementation en vigueur, l’adoption d’un PPT entraîne également l’obligation de constituer ou d’alimenter le fonds de travaux de la copropriété afin de financer progressivement les opérations programmées.',
-    'Il est rappelé que le PPPT constitue un document prévisionnel et évolutif. Il a vocation à être actualisé périodiquement afin de tenir compte de l’évolution de l’état du bâtiment, des obligations réglementaires et des décisions prises par le syndicat des copropriétaires.',
-    'Dans le cadre de l’exercice de ses pouvoirs de contrôle en matière de sécurité et de salubrité des immeubles, l’autorité administrative compétente peut demander à tout moment la transmission du Plan Pluriannuel de Travaux (PPT) adopté par la copropriété. En l’absence de transmission dans un délai d’un mois suivant cette demande, ou lorsque le document transmis ne prévoit manifestement pas les travaux nécessaires à la préservation de la sécurité des occupants et à la conservation de l’immeuble, l’autorité administrative peut faire élaborer ou actualiser d’office le projet de plan pluriannuel de travaux, aux frais du syndicat des copropriétaires.',
-    'Par ailleurs, le non-respect des obligations relatives à l’élaboration du PPPT est susceptible d’engager la responsabilité du syndicat des copropriétaires. Les copropriétaires estimant avoir subi un préjudice du fait de l’absence de réalisation du PPPT peuvent solliciter réparation conformément aux dispositions de l’article 14 de la loi du 10 juillet 1965.',
-  ].join('\n\n'), 51, 226, 9.8);
+  const heading: IntroductionTextOptions = { fontSize: 13, bold: true };
+  const bullet: IntroductionTextOptions = {
+    bullet: { characterCode: '2022', indent: INTRODUCTION_BULLET_INDENT },
+  };
+  addIntroductionTextFlow(slide, [
+    introductionParagraph('1.1 Cadre réglementaire du Projet de Plan Pluriannuel de Travaux (PPPT)', heading),
+    introductionBlank(),
+    ...introductionRichParagraph([
+      { text: 'Le présent document constitue un ' },
+      { text: 'Projet de Plan Pluriannuel de Travaux (PPPT)', options: { bold: true } },
+      { text: ' établi conformément aux dispositions de la ' },
+      { text: 'loi n° 2021-1104 du 22 août 2021', options: { bold: true } },
+      { text: ', dite « Climat et Résilience », codifiées aux ' },
+      { text: 'articles L.731-1 à L.731-5', options: { bold: true } },
+      { text: ' et ' },
+      { text: "R.731-1 à R.731-3 du Code de la construction et de l'habitation", options: { bold: true } },
+      { text: ", ainsi qu'à " },
+      { text: "l'arrêté du 30 mars 2022 relatif au contenu du Projet de Plan Pluriannuel de Travaux", options: { bold: true } },
+      { text: '.' },
+    ]),
+    introductionBlank(),
+    introductionParagraph('Le PPPT est obligatoire pour les copropriétés de plus de 15 ans soumises au statut de la copropriété. Il a pour objectif d’anticiper les besoins de travaux sur les parties communes et les équipements collectifs de l’immeuble, de planifier leur réalisation sur une période de dix ans et d’en estimer les coûts prévisionnels.'),
+    introductionBlank(),
+    introductionParagraph('Son élaboration repose sur l’analyse de l’état apparent du bâti, des équipements communs et des informations communiquées par le syndicat des copropriétaires ou son représentant. Elle prend également en compte le Diagnostic de Performance Énergétique (DPE) collectif et, lorsqu’il existe, le Diagnostic Technique Global (DTG).'),
+    introductionBlank(),
+    introductionParagraph('Le PPPT répond à trois objectifs majeurs :'),
+    introductionParagraph('Assurer la conservation et la pérennité du patrimoine immobilier ;', bullet),
+    introductionParagraph('Garantir la sécurité et le confort des occupants ;', bullet),
+    introductionParagraph('Favoriser l’amélioration de la performance énergétique du bâtiment.', bullet),
+    introductionBlank(),
+    introductionParagraph('Le projet présenté dans ce rapport constitue un outil d’aide à la décision permettant à la copropriété d’identifier les travaux à prévoir, de hiérarchiser les interventions et d’anticiper les investissements futurs.'),
+    introductionBlank(),
+    ...introductionRichParagraph([
+      { text: 'Après sa présentation en assemblée générale, le PPPT pourra être adopté en tout ou partie par les copropriétaires. Une fois approuvé, il devient un ' },
+      { text: 'Plan Pluriannuel de Travaux (PPT)', options: { bold: true } },
+      { text: ' et sert de référence pour la programmation des opérations à venir. Les travaux sont ensuite soumis au vote des copropriétaires selon les règles de majorité applicables à leur nature.' },
+    ]),
+    introductionBlank(),
+    introductionParagraph('Conformément à la réglementation en vigueur, l’adoption d’un PPT entraîne également l’obligation de constituer ou d’alimenter le fonds de travaux de la copropriété afin de financer progressivement les opérations programmées.'),
+    introductionBlank(),
+    introductionParagraph('Il est rappelé que le PPPT constitue un document prévisionnel et évolutif. Il a vocation à être actualisé périodiquement afin de tenir compte de l’évolution de l’état du bâtiment, des obligations réglementaires et des décisions prises par le syndicat des copropriétaires.'),
+    introductionBlank(),
+    introductionParagraph('Dans le cadre de l’exercice de ses pouvoirs de contrôle en matière de sécurité et de salubrité des immeubles, l’autorité administrative compétente peut demander à tout moment la transmission du Plan Pluriannuel de Travaux (PPT) adopté par la copropriété. En l’absence de transmission dans un délai d’un mois suivant cette demande, ou lorsque le document transmis ne prévoit manifestement pas les travaux nécessaires à la préservation de la sécurité des occupants et à la conservation de l’immeuble, l’autorité administrative peut faire élaborer ou actualiser d’office le projet de plan pluriannuel de travaux, aux frais du syndicat des copropriétaires.'),
+    introductionBlank(),
+    introductionParagraph('Par ailleurs, le non-respect des obligations relatives à l’élaboration du PPPT est susceptible d’engager la responsabilité du syndicat des copropriétaires. Les copropriétaires estimant avoir subi un préjudice du fait de l’absence de réalisation du PPPT peuvent solliciter réparation conformément aux dispositions de l’article 14 de la loi du 10 juillet 1965.'),
+  ], 15.03, 35.69, 180.13, 229.67);
 }
 
 function addIntroductionScope(slide: Slide): void {
-  addText(slide, '1.2 Validité du présent rapport', 17.5, 37, 175, 8.5,
-    { fontSize: 13, bold: true });
-  addParagraph(slide,
-    "Les constats et observations présentés dans ce rapport sont établis sur la base des éléments visibles et accessibles au jour de la visite. Ils reflètent l'état apparent de l'immeuble à cette date uniquement.",
-    51, 15, 8.8);
-  addParagraph(slide,
-    "Toute modification, intervention ou dégradation survenue postérieurement à notre passage ne peut être prise en compte dans la présente étude. L'évolution naturelle du bâtiment, les conditions climatiques, les sinistres, les travaux ou tout autre événement susceptible d'affecter son état peuvent entraîner l'apparition ou l'aggravation de désordres non observables lors de la visite.",
-    70, 24, 8.8);
-  addParagraph(slide,
-    'En conséquence, les conclusions du présent rapport doivent être appréciées au regard de la date de réalisation de la mission.',
-    98, 13, 8.8);
-
-  addText(slide, '1.3 Périmètre de la mission et réserves', 17.5, 118, 175, 9,
-    { fontSize: 13, bold: true });
-  addText(slide, 'Nature de la mission', 17.5, 134, 175, 6,
-    { fontSize: 11.1, bold: true, underline: { color: INK } });
-  addParagraph(slide,
-    "La présente mission consiste en une analyse visuelle de l'état apparent des parties communes et des équipements collectifs de la copropriété. Elle vise à identifier les principales pathologies, désordres, défauts d'entretien ou besoins de travaux susceptibles d'affecter la conservation du bâtiment, la sécurité des occupants ou la performance énergétique de l'immeuble.",
-    143, 21, 8.4);
-  addParagraph(slide,
-    'Cette mission est réalisée sans sondage, démontage, essai destructif ou investigation intrusive.',
-    166, 8, 8.4);
-  addText(slide, 'Sources d’information', 17.5, 178, 175, 6,
-    { fontSize: 11.1, bold: true, underline: { color: INK } });
-  addParagraph(slide,
-    "Les observations et préconisations formulées dans ce rapport s'appuient :\n•  sur les documents et informations transmis par le syndicat des copropriétaires ou son représentant ;\n•  sur les constatations réalisées lors de la visite des lieux ;\n•  sur les éléments visibles et accessibles au moment de l'intervention.",
-    187, 22, 8.4);
-  addParagraph(slide,
-    "Les conclusions présentées ne peuvent donc être considérées comme exhaustives et demeurent limitées aux conditions d'observation rencontrées lors de la visite.",
-    212, 10, 8.4);
-  addText(slide, 'Éléments non visités ou non accessibles', 17.5, 226, 175, 6,
-    { fontSize: 11.1, bold: true, underline: { color: INK } });
-  addParagraph(slide,
-    "Sauf mention contraire, les éléments suivants n'ont pas pu être inspectés ou ont fait l'objet d'une observation limitée :\n•  les locaux nécessitant un accès spécifique ou l'accompagnement d'une personne habilitée (chaufferie, machinerie d'ascenseur, locaux techniques, postes de transformation, etc.) ;\n•  les ouvrages situés à plus de 3 mètres de hauteur lorsqu'aucun moyen d'accès adapté n'était disponible ;\n•  les combles perdus, vides sanitaires, volumes confinés ou zones rendues inaccessibles ;\n•  les réseaux, canalisations, gaines techniques et structures non visibles ;\n•  les éléments situés sous les complexes d'étanchéité ou d'isolation ;\n•  les parties dont l'accès présentait un risque pour la sécurité des intervenants.",
-    235, 37, 7.9);
-  addParagraph(slide,
-    'Les éventuels désordres affectant ces ouvrages ne peuvent donc être identifiés dans le cadre de la présente mission.',
-    273, 7.5, 7.9);
+  const heading: IntroductionTextOptions = { fontSize: 13, bold: true };
+  const subheading: IntroductionTextOptions = {
+    underline: { style: 'sng', color: INK },
+  };
+  const bullet: IntroductionTextOptions = {
+    bullet: { characterCode: '2022', indent: INTRODUCTION_BULLET_INDENT },
+  };
+  addIntroductionTextFlow(slide, [
+    introductionParagraph('1.2 Validité du présent rapport', heading),
+    introductionBlank(),
+    introductionParagraph("Les constats et observations présentés dans ce rapport sont établis sur la base des éléments visibles et accessibles au jour de la visite. Ils reflètent l'état apparent de l'immeuble à cette date uniquement."),
+    introductionBlank(),
+    introductionParagraph("Toute modification, intervention ou dégradation survenue postérieurement à notre passage ne peut être prise en compte dans la présente étude. L'évolution naturelle du bâtiment, les conditions climatiques, les sinistres, les travaux ou tout autre événement susceptible d'affecter son état peuvent entraîner l'apparition ou l'aggravation de désordres non observables lors de la visite."),
+    introductionBlank(),
+    introductionParagraph('En conséquence, les conclusions du présent rapport doivent être appréciées au regard de la date de réalisation de la mission.'),
+    introductionBlank(),
+    introductionBlank(),
+    introductionParagraph('1.3 Périmètre de la mission et réserves', heading),
+    introductionBlank(),
+    introductionParagraph('Nature de la mission', subheading),
+    introductionParagraph("La présente mission consiste en une analyse visuelle de l'état apparent des parties communes et des équipements collectifs de la copropriété. Elle vise à identifier les principales pathologies, désordres, défauts d'entretien ou besoins de travaux susceptibles d'affecter la conservation du bâtiment, la sécurité des occupants ou la performance énergétique de l'immeuble."),
+    introductionBlank(),
+    introductionParagraph('Cette mission est réalisée sans sondage, démontage, essai destructif ou investigation intrusive.'),
+    introductionBlank(),
+    introductionParagraph('Sources d’information', subheading),
+    introductionParagraph("Les observations et préconisations formulées dans ce rapport s'appuient :"),
+    introductionParagraph('sur les documents et informations transmis par le syndicat des copropriétaires ou son représentant ;', bullet),
+    introductionParagraph('sur les constatations réalisées lors de la visite des lieux ;', bullet),
+    introductionParagraph("sur les éléments visibles et accessibles au moment de l'intervention.", bullet),
+    introductionBlank(),
+    introductionParagraph("Les conclusions présentées ne peuvent donc être considérées comme exhaustives et demeurent limitées aux conditions d'observation rencontrées lors de la visite."),
+    introductionBlank(),
+    introductionParagraph('Éléments non visités ou non accessibles', subheading),
+    introductionParagraph("Sauf mention contraire, les éléments suivants n'ont pas pu être inspectés ou ont fait l'objet d'une observation limitée :"),
+    introductionParagraph("les locaux nécessitant un accès spécifique ou l'accompagnement d'une personne habilitée (chaufferie, machinerie d'ascenseur, locaux techniques, postes de transformation, etc.) ;", bullet),
+    introductionParagraph("les ouvrages situés à plus de 3 mètres de hauteur lorsqu'aucun moyen d'accès adapté n'était disponible ;", bullet),
+    introductionParagraph('les combles perdus, vides sanitaires, volumes confinés ou zones rendues inaccessibles ;', bullet),
+    introductionParagraph('les réseaux, canalisations, gaines techniques et structures non visibles ;', bullet),
+    introductionParagraph("les éléments situés sous les complexes d'étanchéité ou d'isolation ;", bullet),
+    introductionParagraph("les parties dont l'accès présentait un risque pour la sécurité des intervenants.", bullet),
+    introductionBlank(),
+    introductionParagraph('Les éventuels désordres affectant ces ouvrages ne peuvent donc être identifiés dans le cadre de la présente mission.'),
+  ], 15.03, 37.25, 180.13, 227.46);
 }
 
 interface IntroductionPriorityRow {
@@ -588,62 +704,72 @@ interface IntroductionPriorityRow {
 const INTRO_PRIORITY_ROWS: readonly IntroductionPriorityRow[] = [
   { displayLabel: 'Entretien', fill: '5DCCCC', title: 'Entretien',
     detail: "Opérations d'entretien courant et de maintenance préventive nécessaires au maintien en bon état des équipements et du bâtiment.",
-    horizonDetail: 'Hors PPPT\n(à titre informatif)', height: 24, },
+    horizonDetail: 'Hors PPPT\n(à titre informatif)', height: 22.11, },
   { displayLabel: 'Signalement', fill: '006FC0', title: 'Signalements',
     detail: "Observations et points de vigilance relevés lors de la visite principalement dans les parties privatives. Ces éléments sont présentés à titre informatif afin d'attirer l'attention des copropriétaires.",
-    horizonDetail: 'Hors PPPT\n(à titre informatif)', height: 24, gapAfter: 6.5 },
+    horizonDetail: 'Hors PPPT\n(à titre informatif)', height: 26.17, gapAfter: 6.68 },
   { displayLabel: 'Curatif Niveau 1', fill: 'D02334', title: 'Travaux prioritaires',
     detail: 'Interventions urgentes nécessaires à la sécurité des occupants, à la préservation du bâti ou à la continuité de service des équipements.',
-    horizonTitle: 'Travaux à effectuer', horizonDetail: 'Sous 2 ans', height: 20.5 },
+    horizonTitle: 'Travaux à effectuer', horizonDetail: 'Sous 2 ans', height: 22.41 },
   { displayLabel: 'Curatif Niveau 2', fill: 'E96620', title: 'Travaux à moyen terme',
     detail: "Travaux correctifs à programmer afin d'éviter une dégradation progressive du bâtiment ou des équipements.",
-    horizonTitle: 'Travaux à effectuer', horizonDetail: 'Entre 3 et 5 ans', height: 20.5 },
+    horizonTitle: 'Travaux à effectuer', horizonDetail: 'Entre 3 et 5 ans', height: 20.42 },
   { displayLabel: 'Curatif Niveau 3', fill: '04CC7E', title: 'Travaux d’esthétiques',
     detail: "Travaux de rénovation ou d'embellissement ne présentant pas de caractère urgent mais contribuant à l'amélioration de l'aspect esthétique.",
-    horizonTitle: 'Travaux à effectuer', horizonDetail: 'Entre 6 et 10 ans', height: 20.5, gapAfter: 6.5 },
+    horizonTitle: 'Travaux à effectuer', horizonDetail: 'Entre 6 et 10 ans', height: 21.83, gapAfter: 6.68 },
   { displayLabel: 'Travaux\nénergétiques', fill: '4EA72E', title: 'Travaux énergétiques',
     detail: "Travaux visant à améliorer la performance énergétique du bâtiment, réduire les consommations d'énergie et améliorer le confort thermique des occupants.",
-    horizonDetail: 'Selon la stratégie de\nrénovation retenue', height: 26 },
+    horizonDetail: 'Selon la stratégie de\nrénovation retenue', height: 24.87 },
 ];
 
 function addIntroductionPriorities(slide: Slide): void {
-  addText(slide, '1.4 Limite de la mission', 17.5, 36, 175, 9,
-    { fontSize: 13, bold: true });
-  addParagraph(slide,
-    "La présente étude constitue un outil d'aide à la décision reposant principalement sur une inspection visuelle des parties communes et des équipements collectifs accessibles lors de la visite. Elle ne saurait être assimilée à une expertise technique approfondie, une mission de maîtrise d'œuvre ou à une étude d'exécution.",
-    48, 22, 8.8);
-  addParagraph(slide,
-    'Les estimations financières présentées ont un caractère indicatif et visent uniquement à hiérarchiser les interventions. Les préconisations formulées pourront nécessiter des investigations complémentaires réalisées par des professionnels spécialisés avant toute réalisation de travaux.',
-    74, 18, 8.8);
-  addParagraph(slide,
-    "FRANCE VERTE décline toute responsabilité en cas d'utilisation du présent document en dehors de son objet, de son périmètre d'intervention.",
-    96, 11, 8.8);
-  addText(slide, '1.5 Hiérarchisation des travaux et des observations', 17.5, 110, 175, 9,
-    { fontSize: 13, bold: true });
+  const heading: IntroductionTextOptions = { fontSize: 13, bold: true };
+  addIntroductionTextFlow(slide, [
+    introductionParagraph('1.4 Limite de la mission', heading),
+    introductionBlank(),
+    introductionParagraph("La présente étude constitue un outil d'aide à la décision reposant principalement sur une inspection visuelle des parties communes et des équipements collectifs accessibles lors de la visite. Elle ne saurait être assimilée à une expertise technique approfondie, une mission de maîtrise d'œuvre ou une étude d'exécution."),
+    introductionBlank(),
+    introductionParagraph('Les estimations financières présentées ont un caractère indicatif et visent uniquement à hiérarchiser les interventions. Les préconisations formulées pourront nécessiter des investigations complémentaires réalisées par des professionnels spécialisés avant toute réalisation de travaux.'),
+    introductionBlank(),
+    introductionParagraph("FRANCE VERTE décline toute responsabilité en cas d'utilisation du présent document en dehors de son objet, de son périmètre d'intervention."),
+    introductionBlank(),
+    introductionParagraph('1.5 Hiérarchisation des travaux et des observations', heading),
+  ], 15.03, 33.43, 180.13, 74.94, 'none');
 
-  let y = 126;
+  const tableX = 15.03;
+  const tableColumns = [46.71, 93.13, 40.29] as const;
+  const chevronX = 19.235;
+  const chevronWidth = 39.21;
+  const chevronHeight = 13.92;
+  let y = 116.53;
   INTRO_PRIORITY_ROWS.forEach((row) => {
-    addRect(slide, 15, y, 50, row.height);
-    addRect(slide, 65, y, 100, row.height);
-    addRect(slide, 165, y, 30.1, row.height);
+    const secondColumnX = tableX + tableColumns[0];
+    const thirdColumnX = secondColumnX + tableColumns[1];
+    addRect(slide, tableX, y, tableColumns[0], row.height, WHITE, BORDER, 1);
+    addRect(slide, secondColumnX, y, tableColumns[1], row.height, WHITE, BORDER, 1);
+    addRect(slide, thirdColumnX, y, tableColumns[2], row.height, WHITE, BORDER, 1);
     slide.addShape('homePlate', {
-      x: mm(19.5), y: mm(y + 3.4), w: mm(41), h: mm(row.height - 6.8),
+      x: mm(chevronX), y: mm(y + (row.height - chevronHeight) / 2),
+      w: mm(chevronWidth), h: mm(chevronHeight),
       line: { color: BORDER, width: 0.7 }, fill: { color: row.fill },
     });
-    addText(slide, row.displayLabel, 20.5, y + 5, 34.5, row.height - 10,
-      { color: WHITE, bold: true, fontSize: 9.2, align: 'center' });
-    addText(slide, row.title, 67, y + 1.1, 96, 4.7,
-      { bold: true, fontSize: 10.1, align: 'center' });
-    addText(slide, row.detail, 67, y + 6.1, 96, row.height - 7.2,
-      { fontSize: 9.3, valign: 'top' });
+    addText(slide, row.displayLabel, chevronX + 2.1, y + (row.height - 7.6) / 2,
+      chevronWidth - 4.2, 7.6, { color: WHITE, bold: true, fontSize: 11.4, align: 'center' });
+    addText(slide, [
+      { text: row.title, options: { bold: true, align: 'center', breakLine: true } },
+      { text: row.detail, options: { align: 'justify' } },
+    ], secondColumnX + 2.2, y + 1.1, tableColumns[1] - 4.4, row.height - 2.2,
+      { fontSize: 11, fit: 'none' });
     if (row.horizonTitle) {
-      addText(slide, row.horizonTitle, 166.5, y + 2, 27.1, 5.2,
-        { fontSize: 8.9, align: 'center', bold: true });
-      addText(slide, row.horizonDetail, 166.5, y + 8, 27.1, row.height - 8.8,
-        { fontSize: 9.1, align: 'center' });
+      addText(slide, [
+        { text: row.horizonTitle, options: { bold: true, align: 'center', breakLine: true } },
+        { text: row.horizonDetail, options: { align: 'center' } },
+      ], thirdColumnX + 1.8, y + 1.1, tableColumns[2] - 3.6, row.height - 2.2,
+        { fontSize: 11, fit: 'none', align: 'center' });
     } else {
-      addText(slide, row.horizonDetail, 166.5, y + 2, 27.1, row.height - 4,
-        { fontSize: 9.1, align: 'center' });
+      addText(slide, row.horizonDetail, thirdColumnX + 1.8, y + 1.1,
+        tableColumns[2] - 3.6, row.height - 2.2,
+        { fontSize: 11, fit: 'none', align: 'center' });
     }
     y += row.height + (row.gapAfter ?? 0);
   });

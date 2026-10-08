@@ -86,6 +86,7 @@ test('generated PPTX uses A4 portrait slides, correct fields, priority order and
   assert.match(contents[1], /Estimation IA indicative/);
   for (const content of contents) {
     assert.match(content, /Illustrations/);
+    assert.match(content, /Copropriété ABCD XYZ/); // The autonomous export keeps its existing footer.
     assert.doesNotMatch(content, /\.jpg|Bati Chiffrage/);
     assert.match(content, /<a:t>/); // Text remains native and editable in PowerPoint.
   }
