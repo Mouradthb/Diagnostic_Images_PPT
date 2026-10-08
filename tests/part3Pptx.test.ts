@@ -84,6 +84,12 @@ async function slideXml(zip: JSZip): Promise<string[]> {
   return Promise.all(paths.map((path) => zip.file(path)!.async('string')));
 }
 
+async function relationshipXml(zip: JSZip): Promise<string> {
+  const paths = Object.keys(zip.files)
+    .filter((path) => /^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(path));
+  return (await Promise.all(paths.map((path) => zip.file(path)!.async('string')))).join('\n');
+}
+
 test('Part 3 rejects incomplete documentary data before appending a page', async () => {
   const pptx = new pptxgen();
   assert.throws(() => appendPart3Slides(pptx, createEmptyPart3ReportData(), [], assets()), /Partie 3 incomplète/);
@@ -161,6 +167,22 @@ test('Part 3 paginates long curative tables with repeated headers and totals onl
   assert.equal(report.curativeSummary.totalTtcEur, 12450);
 });
 
+test('Part 3 keeps one normally sized curative intervention in a single table row', async () => {
+  const intervention = [
+    'Il convient de procéder à une vérification urgente sur site afin de s’assurer de la présence effective de l’extincteur ou de son support.',
+    'Si l’absence est confirmée, il conviendra de réinstaller immédiatement un équipement de première intervention conforme aux exigences de sécurité du site.',
+  ].join(' ');
+  const pptx = new pptxgen();
+  appendPart3Slides(pptx, completeDocumentation(), [
+    diagnostic('c1', 'Curatif Niveau 1', 100, 300, intervention),
+  ], assets());
+  const slides = await slideXml(await packageFor(pptx));
+  const curativeSlide = slides.find((slide) => slide.includes('Tableau 1') && slide.includes('présence effective'));
+  assert.ok(curativeSlide, 'The curative intervention must be present in the recap table.');
+  assert.equal((curativeSlide.match(/val="F6A5A8"/g) ?? []).length, 6,
+    'A single curative intervention must render as one coloured table row, not continuation rows.');
+});
+
 test('Part 3 continues a long optional documentary comment without clipping its table header', async () => {
   const data = completeDocumentation();
   data.documentation.documentsReglementairesAdministratifs.assuranceCopropriete.commentaire = [
@@ -209,4 +231,20 @@ test('Part 3 preserves the reference slide structures without repeating the lexi
   assert.match(slides[23], /VMC \(Ventilation Mécanique Contrôlée\)/);
   assert.match(slides[23], /Gain énergétique/);
   assert.match(slides[23], /9\. LEXIQUE/);
+});
+
+test('Part 3 embeds the requested external resource links and uses Calibri 11 for regular copy', async () => {
+  const pptx = new pptxgen();
+  appendPart3Slides(pptx, completeDocumentation(), [], assets());
+  const zip = await packageFor(pptx);
+  const relationships = await relationshipXml(zip);
+  assert.match(relationships, /https:\/\/www\.service-public\.gouv\.fr\/particuliers\/vosdroits\/F35584/);
+  assert.match(relationships, /https:\/\/www\.service-public\.gouv\.fr\/particuliers\/vosdroits\/F38064/);
+  assert.match(relationships, /https:\/\/www\.economie\.gouv\.fr\/particuliers\/impots-et-fiscalite\/gerer-mes-autres-impots-et-taxes\/tva-taux-reduit-pour-quels-travaux/);
+  assert.match(relationships, /http:\/\/www\.georisques\.gouv\.fr\//);
+
+  const slides = await slideXml(zip);
+  const ceeSlide = slides.find((slide) => slide.includes('Certificats d’économie d’énergie (CEE) | Service Public'));
+  assert.match(ceeSlide ?? '', /typeface="Calibri"/);
+  assert.match(ceeSlide ?? '', /sz="1100"/);
 });

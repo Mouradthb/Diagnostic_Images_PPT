@@ -11,9 +11,10 @@ const TABLE_W = PAGE_W - TABLE_X * 2;
 const TABLE_TOP = 2.56;
 const TABLE_TOP_WITHOUT_PRIORITY = 1.48;
 const TABLE_BOTTOM = 10.91;
-const FONT = 'Arial';
-const BODY_SIZE = 10.5;
-const BODY_LINE = 0.205;
+const DISPLAY_FONT = 'Arial';
+const BODY_FONT = 'Calibri';
+const BODY_SIZE = 11;
+const BODY_LINE = 0.22;
 const INK = '171717';
 const BORDER = '2B2B2B';
 
@@ -45,7 +46,7 @@ type Slide = ReturnType<Presentation['addSlide']>;
 function addText(slide: Slide, text: string, x: number, y: number, w: number, h: number,
   extra: Parameters<Slide['addText']>[1] = {}) {
   slide.addText(text, {
-    x, y, w, h, fontFace: FONT, fontSize: BODY_SIZE, color: INK,
+    x, y, w, h, fontFace: BODY_FONT, fontSize: BODY_SIZE, color: INK,
     margin: 0, breakLine: false, valign: 'middle', wrap: false, ...extra,
   });
 }
@@ -62,7 +63,7 @@ function measureLine(text: string, fontSizePt: number): number {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (context) {
-      context.font = `${fontSizePt * 96 / 72}px ${FONT}`;
+      context.font = `${fontSizePt * 96 / 72}px ${BODY_FONT}`;
       return context.measureText(text).width / 96;
     }
   }
@@ -111,16 +112,16 @@ function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImag
     line: { color: '00B55A', transparency: 100 }, fill: { color: '00B55A' } });
   addText(slide, '2.IDENTIFICATION ET HIÉRARCHISATION DES TRAVAUX ET OBSERVATIONS',
     TABLE_X + 0.14, 0.93, TABLE_W - 0.25, 0.26,
-    { fontSize: 11.5, bold: true, color: 'FFFFFF' });
+    { fontFace: DISPLAY_FONT, fontSize: 11.5, bold: true, color: 'FFFFFF' });
   const priority = PRIORITY_COLORS[item.result!.priorite];
   if (showPriorityIntro) {
     slide.addShape('chevron', { x: TABLE_X, y: 1.76, w: 1.75, h: 0.47,
       line: { color: BORDER, width: 0.8 }, fill: { color: priority.fill } });
     addText(slide, priority.ribbon, TABLE_X + 0.07, 1.80, 1.43, 0.38,
-      { fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
+      { fontFace: DISPLAY_FONT, fontSize: priority.ribbon.length > 17 ? 9.0 : 10.0,
         bold: true, color: priority.text, align: 'center', wrap: true });
     addText(slide, priority.detail, TABLE_X + 1.99, 1.55, TABLE_W - 2.05, 0.89,
-      { fontSize: 8.3, bold: true, valign: 'middle', wrap: true, lineSpacingMultiple: 1.0 });
+      { fontFace: DISPLAY_FONT, fontSize: 8.3, bold: true, valign: 'middle', wrap: true, lineSpacingMultiple: 1.0 });
   }
 
   const tableTop = showPriorityIntro ? TABLE_TOP : TABLE_TOP_WITHOUT_PRIORITY;
@@ -133,12 +134,12 @@ function addPageHeader(pptx: Presentation, slides: Slide[], item: InspectionImag
   addRectangle(slide, TABLE_X + col1, tableTop, col2, headingHeight);
   addRectangle(slide, TABLE_X + col1 + col2, tableTop, col3, headingHeight, priority.fill);
   addText(slide, `N°${number}`, TABLE_X + 0.04, tableTop + (headingHeight - 0.24) / 2, col1 - 0.08, 0.24,
-    { bold: true, align: 'center' });
+    { fontFace: DISPLAY_FONT, bold: true, align: 'center' });
   addText(slide, familyLines.join('\n'), TABLE_X + col1 + 0.08,
-    tableTop + 0.08, col2 - 0.16, headingHeight - 0.16, { bold: true, fontSize: 10.2 });
+    tableTop + 0.08, col2 - 0.16, headingHeight - 0.16, { fontFace: DISPLAY_FONT, bold: true, fontSize: 10.2 });
   addText(slide, priority.label, TABLE_X + col1 + col2 + 0.06,
     tableTop + (headingHeight - 0.31) / 2, col3 - 0.12, 0.31,
-    { bold: true, color: priority.text, align: 'center', fontSize: priority.label.length > 19 ? 9.7 : 10.5 });
+    { fontFace: DISPLAY_FONT, bold: true, color: priority.text, align: 'center', fontSize: priority.label.length > 19 ? 9.7 : 10.5 });
   return { slide, y: tableTop + headingHeight };
 }
 
@@ -147,7 +148,7 @@ function addBodyRow(slide: Slide, label: string, lines: string[], y: number): nu
   const height = 0.37 + contentHeight + 0.09;
   addRectangle(slide, TABLE_X, y, TABLE_W, height);
   addText(slide, `${label} :`, TABLE_X + 0.08, y + 0.07, TABLE_W - 0.16, 0.19,
-    { bold: true, fontSize: 10.1 });
+    { fontFace: DISPLAY_FONT, bold: true, fontSize: 10.1 });
   addText(slide, lines.join('\n'), TABLE_X + 0.08, y + 0.31, TABLE_W - 0.16,
     contentHeight + 0.04, { valign: 'top', breakLine: false, lineSpacingMultiple: 1.0 });
   return y + height;
@@ -160,16 +161,19 @@ function addCostRow(slide: Slide, min: number, max: number, y: number): number {
       ? `${new Intl.NumberFormat('fr-FR').format(min)} € TTC`
       : `${new Intl.NumberFormat('fr-FR').format(min)} à ${new Intl.NumberFormat('fr-FR').format(max)} € TTC`
     : 'À déterminer après visite et définition des travaux.';
-  const height = hasCost ? 0.84 : 0.64;
+  const noteLines = hasCost
+    ? wrapLines('Estimation IA indicative, susceptible d’être ajustée après consultation des entreprises', TABLE_W - 0.20, BODY_SIZE).length
+    : 0;
+  const height = hasCost ? 0.57 + Math.max(1, noteLines) * BODY_LINE + 0.12 : 0.70;
   addRectangle(slide, TABLE_X, y, TABLE_W, height);
   addText(slide, 'Chiffrage estimatif :', TABLE_X + 0.08, y + 0.06, TABLE_W - 0.16, 0.19,
-    { bold: true, fontSize: 10.1 });
+    { fontFace: DISPLAY_FONT, bold: true, fontSize: 10.1 });
   addText(slide, `Coût estimé : ${amount}`, TABLE_X + 0.10, y + 0.29, TABLE_W - 0.20, 0.23,
-    { align: 'center', bold: true, fontSize: 10.2 });
+    { align: 'center', bold: true, fontSize: BODY_SIZE });
   if (hasCost) addText(slide,
     'Estimation IA indicative, susceptible d’être ajustée après consultation des entreprises',
-    TABLE_X + 0.10, y + 0.55, TABLE_W - 0.20, 0.17,
-    { align: 'center', italic: true, fontSize: 9.0, color: '626262' });
+    TABLE_X + 0.10, y + 0.55, TABLE_W - 0.20, Math.max(1, noteLines) * BODY_LINE,
+    { align: 'center', italic: true, fontSize: BODY_SIZE, color: '626262', valign: 'top', wrap: true });
   return y + height;
 }
 
@@ -178,7 +182,7 @@ function addIllustration(slide: Slide, imageData: string, imageW: number,
   const height = Math.min(4.30, TABLE_BOTTOM - y);
   addRectangle(slide, TABLE_X, y, TABLE_W, height);
   addText(slide, 'Illustrations :', TABLE_X + 0.08, y + 0.07, TABLE_W - 0.16, 0.19,
-    { bold: true, fontSize: 10.1 });
+    { fontFace: DISPLAY_FONT, bold: true, fontSize: 10.1 });
   const maxW = TABLE_W - 0.28;
   const maxH = height - 0.43;
   const scale = Math.min(maxW / imageW, maxH / imageH);
@@ -303,10 +307,10 @@ export async function appendDiagnosticSlides(
   slides.forEach((slide, index) => {
     addText(slide, coproprieteName,
       2.42, PAGE_H - 0.33, 3.5, 0.16,
-      { fontSize: 8.3, align: 'center', color: '777777' });
+      { fontFace: DISPLAY_FONT, fontSize: 8.3, align: 'center', color: '777777' });
     addText(slide, String(firstPageNumber + index), PAGE_W - TABLE_X - 0.3,
       PAGE_H - 0.33, 0.3, 0.16,
-      { fontSize: 8.3, align: 'right', color: '777777' });
+      { fontFace: DISPLAY_FONT, fontSize: 8.3, align: 'right', color: '777777' });
   });
   return { slides, priorityStarts };
 }
@@ -323,7 +327,7 @@ export async function renderDiagnosticPptx(
   pptx.author = 'France Verte';
   pptx.subject = 'Diagnostics techniques du bâtiment';
   pptx.title = 'Diagnostic Technique Bâtiment';
-  pptx.theme = { headFontFace: FONT, bodyFontFace: FONT };
+  pptx.theme = { headFontFace: DISPLAY_FONT, bodyFontFace: BODY_FONT };
   await appendDiagnosticSlides(pptx, items, logoData, loadPhoto);
   const output = await pptx.write({ outputType: 'blob', compression: true });
   if (!(output instanceof Blob)) throw new Error('La génération du fichier PPTX a échoué.');

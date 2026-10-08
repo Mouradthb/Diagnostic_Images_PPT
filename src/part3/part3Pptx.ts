@@ -79,10 +79,13 @@ export interface AppendedPart3Slides {
   curativeSummary: RecapitulatifCuratifsPartie3;
 }
 
-// The reference deck uses Aptos for body copy and Aptos Display for headings.
-// Keeping these choices local to Part 3 avoids changing the validated Part 2 renderer.
+// The source deck uses Aptos/Aptos Display for fixed presentation elements.
+// The user requested Calibri 11 for regular report copy; headings, ribbons and
+// table headers deliberately retain their dedicated presentation styling.
 const FONT = 'Aptos';
 const TITLE_FONT = 'Aptos Display';
+const BODY_FONT = 'Calibri';
+const BODY_FONT_SIZE = 11;
 const WHITE = 'FFFFFF';
 const INK = '1C1C1C';
 const GREEN = '00B55A';
@@ -128,6 +131,7 @@ interface StaticFinanceSlide {
   introduction?: string;
   rubriques?: readonly StaticRubric[];
   lien?: string;
+  lienUrl?: string;
   aides?: readonly string[];
   note?: string;
   etapes?: readonly (readonly [string, string])[];
@@ -158,6 +162,39 @@ function addText(
     valign: 'top',
     wrap: true,
     ...options,
+  });
+}
+
+/** Regular copy uses the requested, report-wide body typography. */
+function addBodyText(
+  slide: Slide,
+  text: Text,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  options: Parameters<Slide['addText']>[1] = {},
+): void {
+  addText(slide, text, x, y, w, h, {
+    fontFace: BODY_FONT,
+    fontSize: BODY_FONT_SIZE,
+    ...options,
+  });
+}
+
+function addExternalLink(
+  slide: Slide,
+  label: string,
+  url: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): void {
+  addBodyText(slide, label, x, y, w, h, {
+    color: '4B8BA5',
+    underline: { color: '4B8BA5' },
+    hyperlink: { url, tooltip: label },
   });
 }
 
@@ -261,11 +298,13 @@ function addCell(
     align?: 'left' | 'center' | 'right';
     valign?: 'top' | 'middle' | 'bottom';
     fontSize?: number;
+    fontFace?: string;
     lineColor?: string;
   } = {},
 ): void {
   addRect(slide, x, y, w, h, options.fill ?? WHITE, options.lineColor ?? BORDER);
   addText(slide, text, x + 1.7, y + 1.1, w - 3.4, h - 2.2, {
+    fontFace: options.fontFace ?? FONT,
     fontSize: options.fontSize ?? 8.7,
     color: options.color ?? INK,
     bold: options.bold ?? false,
@@ -289,12 +328,14 @@ function addParagraph(slide: Slide, text: string, y: number, options: {
   bottomGap?: number;
   color?: string;
   align?: 'left' | 'center' | 'right' | 'justify';
+  fontFace?: string;
 } = {}): number {
   const width = options.width ?? 174;
   const x = options.x ?? 18;
-  const fontSize = options.fontSize ?? 8.4;
+  const fontSize = Math.max(BODY_FONT_SIZE, options.fontSize ?? BODY_FONT_SIZE);
   const height = estimateTextHeightMm(text, width, fontSize);
-  addText(slide, text, x, y, width, height, {
+  addBodyText(slide, text, x, y, width, height, {
+    fontFace: options.fontFace ?? BODY_FONT,
     fontSize,
     bold: options.bold ?? false,
     italic: options.italic ?? false,
@@ -310,15 +351,16 @@ function addBullets(slide: Slide, items: readonly string[], y: number, options: 
   x?: number;
   bottomGap?: number;
   itemGap?: number;
+  fontFace?: string;
 } = {}): number {
   let current = y;
   const x = options.x ?? 21;
   const width = options.width ?? 170;
-  const fontSize = options.fontSize ?? 8.4;
+  const fontSize = Math.max(BODY_FONT_SIZE, options.fontSize ?? BODY_FONT_SIZE);
   for (const item of items) {
     const height = estimateTextHeightMm(item, width - 5, fontSize);
-    addText(slide, '•', x, current, 3.5, height, { fontSize, valign: 'top' });
-    addText(slide, item, x + 4, current, width - 4, height, { fontSize, valign: 'top' });
+    addBodyText(slide, '•', x, current, 3.5, height, { fontFace: options.fontFace ?? BODY_FONT, fontSize, valign: 'top' });
+    addBodyText(slide, item, x + 4, current, width - 4, height, { fontFace: options.fontFace ?? BODY_FONT, fontSize, valign: 'top' });
     current += height + (options.itemGap ?? 1.3);
   }
   return current + (options.bottomGap ?? 2.2);
@@ -388,8 +430,8 @@ function splitTextForHeight(text: string, widthMm: number, fontSize: number, max
 }
 
 function documentaryRowHeight(description: string, comment: string, includeDescription: boolean): number {
-  const left = includeDescription ? estimateTextHeightMm(description, 93, 10, 2) + 2 : 0;
-  const right = estimateTextHeightMm(comment, 47, 10, 1) + 2;
+  const left = includeDescription ? estimateTextHeightMm(description, 93, BODY_FONT_SIZE, 2) + 2 : 0;
+  const right = estimateTextHeightMm(comment, 47, BODY_FONT_SIZE, 1) + 2;
   // The reference table fits six concise rows on an A4 page.  More verbose
   // user comments are split above, so a smaller baseline row remains legible
   // while preserving that expected one-page layout.
@@ -437,7 +479,7 @@ function appendDocumentaryTable(
       { text: `\n${templateRow.obligation}` },
     ];
     const descriptionForMeasure = `${templateRow.designation}\n${templateRow.references}\n${templateRow.obligation}`;
-    const commentChunks = splitTextForHeight(answer.commentaire ?? '', 47, 10, 43);
+    const commentChunks = splitTextForHeight(answer.commentaire ?? '', 47, BODY_FONT_SIZE, 43);
     commentChunks.forEach((comment, chunkIndex) => {
       const includeDescription = chunkIndex === 0;
       const height = documentaryRowHeight(descriptionForMeasure, comment, includeDescription);
@@ -453,15 +495,20 @@ function appendDocumentaryTable(
         { text: templateRow.designation, options: { bold: true } },
         { text: '\nSuite du commentaire', options: { italic: true, color: MUTED } },
       ];
-      addCell(slide, 15, y, 97, height, includeDescription ? description : continuationLabel, { valign: 'middle', align: 'center', fontSize: 10 });
+      addCell(slide, 15, y, 97, height, includeDescription ? description : continuationLabel, {
+        valign: 'middle', align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+      });
       addCell(slide, 112, y, 32, height, includeDescription ? LIBELLES_STATUTS_DOCUMENTAIRES_PARTIE3[answer.statut!] : '—', {
         fill: includeDescription ? STATUS_FILLS[answer.statut!] : WHITE,
         color: includeDescription ? WHITE : MUTED,
         bold: includeDescription,
         align: 'center',
-        fontSize: 10,
+        fontFace: BODY_FONT,
+        fontSize: BODY_FONT_SIZE,
       });
-      addCell(slide, 144, y, 51, height, comment, { valign: 'top', fontSize: 10 });
+      addCell(slide, 144, y, 51, height, comment, {
+        valign: 'top', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+      });
       y += height;
     });
   }
@@ -472,8 +519,8 @@ function addReferenceStripTable(slide: Slide, title: string, y: number): number 
   // The reference uses a navy full-width heading and one two-column data row.
   // Its example contract, work and vote details are deliberately not copied.
   addCell(slide, 15, y, 180, 9, title, { fill: NAVY, color: WHITE, bold: true, fontSize: 10 });
-  addCell(slide, 15, y + 9, 90, 9, PART3_VALEUR_A_CONFIRMER, { fontSize: 10 });
-  addCell(slide, 105, y + 9, 90, 9, '', { fontSize: 10 });
+  addCell(slide, 15, y + 9, 90, 9, PART3_VALEUR_A_CONFIRMER, { fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE });
+  addCell(slide, 105, y + 9, 90, 9, '', { fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE });
   return y + 18;
 }
 
@@ -731,7 +778,7 @@ function addCurativeHeader(slide: Slide, y: number): void {
 }
 
 function curativeRowHeight(text: string): number {
-  return Math.max(16, estimateTextHeightMm(text, 56, 9.5, 2) + 2);
+  return Math.max(18, estimateTextHeightMm(text, 56, BODY_FONT_SIZE, 2) + 2);
 }
 
 function addCurativeRow(
@@ -749,14 +796,21 @@ function addCurativeRow(
     color: INK,
     bold: true,
     align: 'center',
-    fontSize: 9,
+    fontFace: BODY_FONT,
+    fontSize: BODY_FONT_SIZE,
   });
-  addCell(slide, 34, y, 20, height, showIdentity ? String(line.numero) : '', { fill: rowFill, align: 'center', fontSize: 9.5 });
-  addCell(slide, 54, y, 60, height, natureTravaux, { fill: rowFill, valign: 'middle', fontSize: 9.5 });
-  addCell(slide, 114, y, 21, height, showIdentity ? formatEur(line.montantEstimeTtcEur) : '', { fill: rowFill, align: 'center', fontSize: 9.5 });
+  addCell(slide, 34, y, 20, height, showIdentity ? String(line.numero) : '', {
+    fill: rowFill, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+  });
+  addCell(slide, 54, y, 60, height, natureTravaux, {
+    fill: rowFill, valign: 'middle', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+  });
+  addCell(slide, 114, y, 21, height, showIdentity ? formatEur(line.montantEstimeTtcEur) : '', {
+    fill: rowFill, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+  });
   const levels: readonly NiveauCuratifPartie3[] = ['Curatif Niveau 1', 'Curatif Niveau 2', 'Curatif Niveau 3'];
   levels.forEach((level, index) => addCell(slide, 135 + index * 20, y, 20, height, showIdentity && line.niveau === level ? '✓' : '', {
-    fill: rowFill, align: 'center', fontSize: 11, bold: true, color: INK,
+    fill: rowFill, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE, bold: true, color: INK,
   }));
 }
 
@@ -765,17 +819,21 @@ function addCurativeTotals(slide: Slide, y: number, summary: RecapitulatifCurati
   let current = y;
   const levels: readonly NiveauCuratifPartie3[] = ['Curatif Niveau 1', 'Curatif Niveau 2', 'Curatif Niveau 3'];
   levels.forEach((level, index) => {
-    addCell(slide, 34, current, 101, 12, `${fixed.totaux[index].titre}\n${fixed.totaux[index].calendrierModele}`, { fill: 'D9EAF7', align: 'center', fontSize: 9 });
-    levels.forEach((columnLevel, columnIndex) => addCell(slide, 135 + columnIndex * 20, current, 20, 12,
+    addCell(slide, 34, current, 101, 14, `${fixed.totaux[index].titre}\n${fixed.totaux[index].calendrierModele}`, {
+      fill: 'D9EAF7', align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+    });
+    levels.forEach((columnLevel, columnIndex) => addCell(slide, 135 + columnIndex * 20, current, 20, 14,
       columnLevel === level ? formatEur(summary.totauxParNiveau[level]) : '',
-      { fill: 'D9EAF7', bold: columnLevel === level, align: 'center', fontSize: 9 }));
-    current += 12;
+      { fill: 'D9EAF7', bold: columnLevel === level, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE }));
+    current += 14;
   });
-  addCell(slide, 34, current, 101, 11, fixed.totalGeneral, { fill: 'D9EAF7', fontSize: 9 });
-  addCell(slide, 135, current, 60, 11, formatEur(summary.totalTtcEur), { fill: 'D9EAF7', bold: true, align: 'center', fontSize: 9 });
-  current += 13;
-  addText(slide, summary.libelleChiffrage, 15, current, 180, 5, { fontSize: 9, italic: true, color: MUTED, align: 'right', valign: 'middle' });
-  return current + 5;
+  addCell(slide, 34, current, 101, 12, fixed.totalGeneral, { fill: 'D9EAF7', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE });
+  addCell(slide, 135, current, 60, 12, formatEur(summary.totalTtcEur), {
+    fill: 'D9EAF7', bold: true, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
+  });
+  current += 14;
+  addBodyText(slide, summary.libelleChiffrage, 15, current, 180, 6, { italic: true, color: MUTED, align: 'right', valign: 'middle' });
+  return current + 6;
 }
 
 function appendCurativeSummarySlides(
@@ -795,22 +853,20 @@ function appendCurativeSummarySlides(
   addCurativeHeader(slide, y);
   y += 22;
   for (const line of summary.lignes) {
-    const chunks = splitTextForHeight(line.natureTravaux, 56, 9.5, 36);
-    chunks.forEach((natureTravaux, chunkIndex) => {
-      const height = curativeRowHeight(natureTravaux);
-      // Reserve the totals on the final page if it has enough vertical room.
-      if (y + height > 225) {
-        slide = addPage(pptx, slides, assets, sectionTitle, coproprieteName, firstPageNumber);
-        result.push(slide);
-        y = addTitle(slide, `${title} — suite`);
-        addCurativeHeader(slide, y);
-        y += 22;
-      }
-      addCurativeRow(slide, y, line, natureTravaux, chunkIndex === 0);
-      y += height;
-    });
+    const height = curativeRowHeight(line.natureTravaux);
+    // Keep every normal intervention in one logical row.  Pagination occurs
+    // before the row rather than creating empty-looking continuation rows.
+    if (y + height > 225) {
+      slide = addPage(pptx, slides, assets, sectionTitle, coproprieteName, firstPageNumber);
+      result.push(slide);
+      y = addTitle(slide, `${title} — suite`);
+      addCurativeHeader(slide, y);
+      y += 22;
+    }
+    addCurativeRow(slide, y, line, line.natureTravaux, true);
+    y += height;
   }
-  if (y + 50 > 279) {
+  if (y + 62 > 279) {
     slide = addPage(pptx, slides, assets, sectionTitle, coproprieteName, firstPageNumber);
     result.push(slide);
     y = addTitle(slide, `${title} — totaux`);
@@ -1039,40 +1095,41 @@ function addEcoPtzSlide(slide: Slide, content: StaticFinanceSlide, assets: Part3
   const intro = (content.introduction ?? '').split('\n\n');
   const [eligibility, amount, operation, takeaway] = content.rubriques ?? [];
   addTitle(slide, content.titre);
-  if (intro[0]) addText(slide, intro[0], 18, 50.2, 107.7, 30, { fontSize: 10, color: '0070C0' });
-  if (intro[1]) addText(slide, intro[1], 18, 84.1, 107.7, 18.5, { fontSize: 10, color: '0070C0' });
+  if (intro[0]) addBodyText(slide, intro[0], 18, 50.2, 107.7, 30, { color: '0070C0' });
+  if (intro[1]) addBodyText(slide, intro[1], 18, 84.1, 107.7, 18.5, { color: '0070C0' });
   if (assets.staticAssets?.ecoPtzData) {
     addImage(slide, assets.staticAssets.ecoPtzData, 131.9, 52.2, 67, 40, 'Illustration Éco-PTZ');
   }
 
   if (eligibility) {
     addText(slide, eligibility.titre, 18, 105.5, 174, 5, { fontSize: 10, bold: true, color: GREEN });
-    if (eligibility.texte) addText(slide, eligibility.texte, 18, 109.7, 174, 5, { fontSize: 10 });
+    if (eligibility.texte) addBodyText(slide, eligibility.texte, 18, 109.7, 174, 5, {});
     const bulletYs = [114, 118.2, 122.4, 126.6];
     eligibility.puces?.forEach((item, index) => {
-      addText(slide, '•', 21, bulletYs[index], 3, 5, { fontSize: 10 });
-      addText(slide, item, 25, bulletYs[index], 167, 5, { fontSize: 10 });
+      addBodyText(slide, '•', 21, bulletYs[index], 3, 5, {});
+      addBodyText(slide, item, 25, bulletYs[index], 167, 5, {});
     });
-    if (eligibility.suite) addText(slide, eligibility.suite, 18, 135.1, 174, 5, { fontSize: 10 });
+    if (eligibility.suite) addBodyText(slide, eligibility.suite, 18, 135.1, 174, 5, {});
     const suiteYs = [139.4, 148.4];
     eligibility.suitePuces?.forEach((item, index) => {
       const height = index === 0 ? 8.5 : 5;
-      addText(slide, '•', 21, suiteYs[index], 3, height, { fontSize: 10 });
-      addText(slide, item, 25, suiteYs[index], 167, height, { fontSize: 10 });
+      addBodyText(slide, '•', 21, suiteYs[index], 3, height, {});
+      addBodyText(slide, item, 25, suiteYs[index], 167, height, {});
     });
   }
 
   const addFinanceRubric = (rubric: StaticRubric | undefined, titleY: number, bodyY: number, bodyHeight: number) => {
     if (!rubric) return;
     addText(slide, rubric.titre, 18, titleY, 174, 5, { fontSize: 10, bold: true, color: GREEN });
-    if (rubric.texte) addText(slide, rubric.texte, 18, bodyY, 174, bodyHeight, { fontSize: 10, align: 'justify' });
+    if (rubric.texte) addBodyText(slide, rubric.texte, 18, bodyY, 174, bodyHeight, { align: 'justify' });
   };
   addFinanceRubric(amount, 160.5, 164.8, 23);
   addFinanceRubric(operation, 194.4, 198.6, 23);
   addFinanceRubric(takeaway, 228.3, 232.5, 15);
   if (content.lien) {
     addText(slide, 'Pour en savoir plus :', 18, 253.7, 174, 5, { fontSize: 10, bold: true, color: GREEN });
-    addText(slide, content.lien, 18, 258.1, 174, 5, { fontSize: 10, color: '4B8BA5', underline: { color: '4B8BA5' } });
+    if (content.lienUrl) addExternalLink(slide, content.lien, content.lienUrl, 18, 258.1, 174, 5);
+    else addBodyText(slide, content.lien, 18, 258.1, 174, 5, { color: '4B8BA5', underline: { color: '4B8BA5' } });
   }
 }
 
@@ -1134,16 +1191,19 @@ function addFinanceSlide(
     bottomGap: 2.8,
   });
   if (content.rubriques?.length) {
-    addRubrics(slide, content.rubriques, usesRightVisual ? Math.max(y, 91) : y, {
+    y = addRubrics(slide, content.rubriques, usesRightVisual ? Math.max(y, 91) : y, {
       fontSize: index >= 2 ? 9 : 9.5,
       titleFontSize: index >= 2 ? 9.5 : 10,
       compact: usesRightVisual,
     });
   }
   if (content.lien) {
-    const linkY = index === 3 ? 250 : index === 2 ? 270 : 263;
+    // The source must stay with the preceding section instead of being fixed
+    // at the bottom of the page (notably on the CEE page).
+    const linkY = index === 3 ? Math.min(y + 3, 262) : index === 1 ? Math.min(y + 3, 270) : 270;
     addText(slide, 'Pour en savoir plus :', 18, linkY, 174, 4, { fontSize: 9.5, bold: true, color: GREEN });
-    addText(slide, content.lien, 18, linkY + 4, 174, 5, { fontSize: 9, color: '4B8BA5', underline: { color: '4B8BA5' } });
+    if (content.lienUrl) addExternalLink(slide, content.lien, content.lienUrl, 18, linkY + 4, 174, 5);
+    else addBodyText(slide, content.lien, 18, linkY + 4, 174, 5, { color: '4B8BA5', underline: { color: '4B8BA5' } });
   }
   return slide;
 }
@@ -1210,9 +1270,14 @@ function addDeclarationAndAnnexSlide(
     `L’intégration de l’annexe Géorisques au présent PPPT est ${PART3_VALEUR_A_CONFIRMER}. Elle ne constitue toutefois ni une étude géotechnique, ni une expertise des risques, ni une analyse structurelle du bâtiment.`,
   ];
   annexBlocks.forEach((block, index) => {
+    if (index === 3) {
+      const height = estimateTextHeightMm(block, 174, BODY_FONT_SIZE);
+      addExternalLink(slide, block, 'http://www.georisques.gouv.fr/', 18, y, 174, height);
+      y += height + 2.2;
+      return;
+    }
     y = addParagraph(slide, block, y, {
-      fontSize: index === 3 ? 10 : 9.5,
-      bold: index === 3,
+      fontSize: 11,
       bottomGap: 2.2,
     });
   });

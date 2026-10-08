@@ -80,6 +80,8 @@ test('generated PPTX uses A4 portrait slides, correct fields, priority order and
   assert.match(contents[2], /TRAVAUX ÉNERGÉTIQUES/);
   assert.match(contents[3], /À CONFIRMER/);
   assert.match(contents[0], /Recommandations/);
+  assert.match(contents[0], /typeface="Calibri"/);
+  assert.match(contents[0], /sz="1100"/);
   assert.doesNotMatch(contents[0], /Chiffrage estimatif/);
   assert.match(contents[1], /Travaux à effectuer/);
   assert.match(contents[1], /Chiffrage estimatif/);

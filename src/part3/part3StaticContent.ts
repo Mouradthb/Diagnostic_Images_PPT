@@ -582,6 +582,7 @@ export const PART3_SECTION_8_FINANCEMENTS_RENOVATION_ENERGETIQUE = {
         },
       ],
       lien: 'Certificats d’économie d’énergie (CEE) | Service Public',
+      lienUrl: 'https://www.service-public.gouv.fr/particuliers/vosdroits/F35584',
     },
     {
       numero: 19,
@@ -617,6 +618,7 @@ export const PART3_SECTION_8_FINANCEMENTS_RENOVATION_ENERGETIQUE = {
         },
       ],
       lien: 'Éco-prêt à taux zéro (éco-PTZ) Copropriétés | Service Public',
+      lienUrl: 'https://www.service-public.gouv.fr/particuliers/vosdroits/F38064',
     },
     {
       numero: 20,
@@ -656,6 +658,7 @@ export const PART3_SECTION_8_FINANCEMENTS_RENOVATION_ENERGETIQUE = {
         },
       ],
       lien: 'TVA à taux réduit : pour quels travaux ? | economie.gouv.fr',
+      lienUrl: 'https://www.economie.gouv.fr/particuliers/impots-et-fiscalite/gerer-mes-autres-impots-et-taxes/tva-taux-reduit-pour-quels-travaux',
     },
     {
       numero: 21,

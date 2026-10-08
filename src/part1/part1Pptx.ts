@@ -137,7 +137,7 @@ function addCell(slide: Slide, x: number, y: number, w: number, h: number, text:
   addText(slide, text, x + 2.3, y + 1.1, w - 4.6, h - 2.2, {
     bold: options.bold ?? false,
     align: options.align ?? 'left',
-    fontSize: options.fontSize ?? 10.5,
+    fontSize: options.fontSize ?? 11,
   });
 }
 
@@ -321,7 +321,7 @@ function addHeritagePage(pptx: pptxgen, data: Part1ReportData,
     { fontSize: 12.3, bold: true });
   addText(slide,
     "Le statut patrimonial d'un bâtiment peut avoir une incidence sur les travaux de rénovation énergétique, notamment lorsqu'ils modifient l'aspect extérieur de l'immeuble (isolation thermique par l'extérieur, remplacement des menuiseries, réfection de toiture, installation de panneaux solaires, etc.). Dans un secteur protégé, certains travaux peuvent nécessiter des autorisations spécifiques ou l'avis de l'Architecte des Bâtiments de France (ABF).",
-    17.5, 45, 175, 27, { fontSize: 10.2, valign: 'top', breakLine: false });
+    17.5, 45, 175, 27, { fontSize: 11, valign: 'top', breakLine: false });
 
   const x = [15, 46.5, 107, 195.1];
   const columnWidths = [31.5, 60.5, 88.1];
@@ -333,19 +333,19 @@ function addHeritagePage(pptx: pptxgen, data: Part1ReportData,
 
   const entries = [
     {
-      y: 92.8, h: 16.7,
+      y: 92.8, h: 18.8,
       name: 'Aucun périmètre de protection',
       description: "L'immeuble n'est soumis à aucune protection patrimoniale particulière.",
       consequence: "Les travaux peuvent être réalisés dans le respect des règles d'urbanisme en vigueur, sans contrainte patrimoniale spécifique.",
     },
     {
-      y: 109.5, h: 25.9,
+      y: 111.6, h: 29.5,
       name: 'Site patrimonial remarquable',
       description: "Secteur présentant un intérêt historique, architectural ou paysager bénéficiant d'une protection particulière.",
       consequence: "Les travaux modifiant l'aspect extérieur du bâtiment (façades, toiture, menuiseries, isolation par l'extérieur, etc.) sont soumis à des prescriptions architecturales et peuvent nécessiter l'accord de l'Architecte des Bâtiments de France (ABF).",
     },
     {
-      y: 135.4, h: 30.1,
+      y: 141.1, h: 33.8,
       name: "Abords d'un Monument Historique",
       description: "L'immeuble est situé dans un périmètre de 500 mètres autour d'un monument historique classé ou inscrit et est susceptible d'être visible depuis celui-ci ou visible en même temps que celui-ci.",
       consequence: "Les travaux visibles depuis l'espace public sont susceptibles d'être soumis à l'avis conforme de l'Architecte des Bâtiments de France (ABF). Des prescriptions concernant les matériaux, les couleurs ou l'aspect des ouvrages peuvent être imposées.",
@@ -353,11 +353,11 @@ function addHeritagePage(pptx: pptxgen, data: Part1ReportData,
   ] as const;
   entries.forEach((entry) => {
     addCell(slide, x[0], entry.y, columnWidths[0], entry.h, entry.name,
-      { bold: true, align: 'center', fontSize: 9.5 });
+      { bold: true, align: 'center', fontSize: 11 });
     addCell(slide, x[1], entry.y, columnWidths[1], entry.h, entry.description,
-      { fontSize: 9.3 });
+      { fontSize: 11 });
     addCell(slide, x[2], entry.y, columnWidths[2], entry.h, entry.consequence,
-      { fontSize: 9.3 });
+      { fontSize: 11 });
   });
 
   addRect(slide, 15, 174.9, 180.1, 105);
@@ -369,9 +369,9 @@ function addHeritagePage(pptx: pptxgen, data: Part1ReportData,
   ];
   heritageRows.forEach(([label, status], index) => {
     const y = 187.5 + index * 18.5;
-    addText(slide, `•  ${label}`, 17.5, y, 65, 7.3, { fontSize: 10.5 });
+    addText(slide, `•  ${label}`, 17.5, y, 65, 7.3, { fontSize: 11 });
     addText(slide, heritageText(status), 17.5, y + 7.4, status === 'concerne' ? 20 : 28, 6.7,
-      { fontSize: 10.5, bold: true, color: status === 'concerne' ? '009B55' : 'D52234',
+      { fontSize: 11, bold: true, color: status === 'concerne' ? '009B55' : 'D52234',
         fill: { color: 'FFF176' } });
   });
   addImage(slide, assets.visuals.vue_patrimoniale.data,

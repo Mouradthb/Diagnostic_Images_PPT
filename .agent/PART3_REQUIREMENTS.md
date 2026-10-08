@@ -42,7 +42,7 @@ Le Tableau 1 généré par la Partie 3 ne crée pas un second jeu de diagnostics
 2. Curatif Niveau 2 ;
 3. Curatif Niveau 3.
 
-Chaque ligne reprend l'intervention de Partie 2 comme nature des travaux et affiche un **montant TTC unique, éditable dans le PPTX**. La règle confirmée est :
+Chaque ligne reprend l'intervention de Partie 2 comme nature des travaux et affiche un **montant TTC unique, éditable dans le PPTX**. Une intervention qui tient sur une page reste dans une seule ligne logique : le générateur pagine avant cette ligne au lieu de créer une seconde ligne vide pour la suite de son texte. La règle confirmée est :
 
 - si les bornes minimum et maximum de l'estimation IA sont positives, finies et cohérentes, afficher leur moyenne arrondie à l'euro ;
 - si l'estimation est absente, nulle, invalide ou inversée, afficher `À confirmer` ; ne jamais convertir cette absence en `0 €` ;
@@ -62,6 +62,13 @@ Les éléments suivants ne sont pas des champs utilisateur à inventer dans cett
 
 Les textes réglementaires, les titres, les listes et les structures fixes du modèle sont reproduits **tels quels** par le générateur. Ils ne sont ni modernisés automatiquement ni transformés en valeurs à saisir. Les exemples de copropriété, de montants, de dates ou de documents du modèle ne sont jamais injectés dans un rapport réel : une donnée hors contrat reste `À confirmer`.
 
+## Typographie et liens des pages fixes
+
+- Les textes de corps sont générés en **Calibri 11 pt**. Les couvertures, titres, sous-titres, en-têtes de tableaux, chevrons et pieds de page conservent leurs styles dédiés.
+- Les sources des pages 8.2, 8.3 et 8.4 sont des liens PowerPoint externes éditables ; elles pointent respectivement vers les pages Service Public CEE, éco-PTZ et la page economie.gouv.fr indiquées dans le contenu statique.
+- Le texte `www.georisques.gouv.fr` de l’annexe 11.1 est également un lien PowerPoint vers `http://www.georisques.gouv.fr/`.
+- Le renvoi de la page 8.2 est placé à la suite du dernier bloc de contenu, au lieu d’être ancré artificiellement près du pied de page.
+
 ## État de réalisation et prochaines validations
 
 1. **Réalisé — formulaire contrôlé.** Les 17 choix obligatoires, commentaires facultatifs et deux imports DPE facultatifs sont reliés à `Part3ReportData` et à sa validation.
@@ -69,4 +76,4 @@ Les textes réglementaires, les titres, les listes et les structures fixes du mo
 3. **Réalisé — liaison des données dérivées.** Les visuels DPE facultatifs et le tableau curatif dérivé sont connectés au rendu, sans modifier l’export autonome de Partie 2.
 4. **Réalisé — assemblage P1+P2+P3.** L'assembleur consomme `appendPart3Slides`, recalcule le sommaire, les pieds de page, la numérotation et le total à partir des diapositives effectivement produites.
 5. **Réalisé — préparation et export final contrôlé.** L'espace 03 affiche l'état P1/P2/P3, l'aperçu curatif en lecture seule et le bouton d'export. Les fichiers P1/P3 restent exclusivement en mémoire de session ; l'absence de visuels DPE ne bloque pas l'export, mais un visuel fourni invalide le bloque jusqu'à correction.
-6. **Validation de mise en service restante.** Le flux local a téléchargé un PPTX assemblé le 8 octobre 2026. Il reste à rendre ce fichier dans PowerPoint, à le comparer aux références avec des données représentatives, puis à vérifier le téléchargement sur le déploiement public.
+6. **Validation de mise en service.** Le flux local et le téléchargement sur le déploiement public ont été testés par l’utilisateur le 8 octobre 2026. Toute correction de mise en page ou de typographie appelle néanmoins une nouvelle comparaison visuelle ciblée dans PowerPoint avant sa validation finale.
