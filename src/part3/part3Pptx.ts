@@ -86,6 +86,7 @@ const FONT = 'Aptos';
 const TITLE_FONT = 'Aptos Display';
 const BODY_FONT = 'Calibri';
 const BODY_FONT_SIZE = 11;
+const CONTENT_BOTTOM_MM = 276;
 const WHITE = 'FFFFFF';
 const INK = '1C1C1C';
 const GREEN = '00B55A';
@@ -248,6 +249,14 @@ function estimateTextHeightMm(text: string, widthMm: number, fontSize: number, m
   return Math.max(minLines, lines) * fontSize * 0.46 + 1.8;
 }
 
+// The fixed 3.3 copy is Calibri 11, like the reference slide. Its many short
+// text boxes must not each inherit the generous padding used on other pages.
+function estimateEvolutionHeightMm(text: string, widthMm: number, fontSize: number): number {
+  const columns = Math.max(14, Math.floor(widthMm / (fontSize * 0.14)));
+  const lines = text.split('\n').reduce((total, line) => total + Math.max(1, Math.ceil(line.length / columns)), 0);
+  return lines * fontSize * 0.45 + 0.5;
+}
+
 function addFooter(slide: Slide, coproprieteName: string, page: number): void {
   const name = coproprieteName.trim() || PART3_VALEUR_A_CONFIRMER;
   addText(slide, `Copropriété ${name}`, 62, 284.5, 86, 5, {
@@ -329,11 +338,12 @@ function addParagraph(slide: Slide, text: string, y: number, options: {
   color?: string;
   align?: 'left' | 'center' | 'right' | 'justify';
   fontFace?: string;
+  measureHeight?: (text: string, widthMm: number, fontSize: number) => number;
 } = {}): number {
   const width = options.width ?? 174;
   const x = options.x ?? 18;
   const fontSize = Math.max(BODY_FONT_SIZE, options.fontSize ?? BODY_FONT_SIZE);
-  const height = estimateTextHeightMm(text, width, fontSize);
+  const height = (options.measureHeight ?? estimateTextHeightMm)(text, width, fontSize);
   addBodyText(slide, text, x, y, width, height, {
     fontFace: options.fontFace ?? BODY_FONT,
     fontSize,
@@ -352,13 +362,14 @@ function addBullets(slide: Slide, items: readonly string[], y: number, options: 
   bottomGap?: number;
   itemGap?: number;
   fontFace?: string;
+  measureHeight?: (text: string, widthMm: number, fontSize: number) => number;
 } = {}): number {
   let current = y;
   const x = options.x ?? 21;
   const width = options.width ?? 170;
   const fontSize = Math.max(BODY_FONT_SIZE, options.fontSize ?? BODY_FONT_SIZE);
   for (const item of items) {
-    const height = estimateTextHeightMm(item, width - 5, fontSize);
+    const height = (options.measureHeight ?? estimateTextHeightMm)(item, width - 5, fontSize);
     addBodyText(slide, '•', x, current, 3.5, height, { fontFace: options.fontFace ?? BODY_FONT, fontSize, valign: 'top' });
     addBodyText(slide, item, x + 4, current, width - 4, height, { fontFace: options.fontFace ?? BODY_FONT, fontSize, valign: 'top' });
     current += height + (options.itemGap ?? 1.3);
@@ -546,18 +557,20 @@ function addStaticEvolutionSlide(
   const slide = addPage(pptx, slides, assets, sectionTitle, coproprieteName, firstPageNumber);
   let y = addTitle(slide, content.titre);
   if (content.titre === '3.3 Extinction des réseaux 2G et 3G') {
-    if (content.sousTitre) y = addParagraph(slide, content.sousTitre, y, { fontSize: 10.6, bold: true, color: INK, bottomGap: 2.6 });
+    const measureHeight = estimateEvolutionHeightMm;
+    if (content.sousTitre) y = addParagraph(slide, content.sousTitre, y, { fontSize: 10.6, bold: true, color: INK, bottomGap: 2.6, measureHeight });
     for (const [index, rubric] of (content.rubriques ?? []).entries()) {
-      y = addParagraph(slide, rubric.titre, y, { fontSize: 10, bold: rubric.titre !== 'Cette évolution peut nécessiter :', color: rubric.titre === 'Cette évolution peut nécessiter :' ? INK : '00B050', bottomGap: 1.1 });
+      y = addParagraph(slide, rubric.titre, y, { fontSize: 10, bold: rubric.titre !== 'Cette évolution peut nécessiter :', color: rubric.titre === 'Cette évolution peut nécessiter :' ? INK : '00B050', bottomGap: 1.1, measureHeight });
       if (rubric.texte) {
         const [context, alert] = rubric.texte.split('\n\nÀ compter du 31 mars 2026,');
-        if (context) y = addParagraph(slide, context, y, { fontSize: 9.2, bottomGap: alert ? 0.7 : 1.1 });
-        if (alert) y = addParagraph(slide, `À compter du 31 mars 2026,${alert}`, y, { fontSize: 9.2, color: 'FF0000', bottomGap: 1.1 });
+        if (context) y = addParagraph(slide, context, y, { fontSize: 9.2, bottomGap: alert ? 0.7 : 1.1, measureHeight });
+        if (alert) y = addParagraph(slide, `À compter du 31 mars 2026,${alert}`, y, { fontSize: 9.2, color: 'FF0000', bottomGap: 1.1, measureHeight });
       }
-      if (rubric.puces?.length) y = addBullets(slide, rubric.puces, y, { fontSize: 9.2, bottomGap: index === 0 ? 0.9 : 1.1, itemGap: 0.35 });
-      if (rubric.suite) y = addParagraph(slide, rubric.suite, y, { fontSize: 9.2, bottomGap: 0.9 });
-      if (rubric.suitePuces?.length) y = addBullets(slide, rubric.suitePuces, y, { fontSize: 9.2, bottomGap: 1.1, itemGap: 0.35 });
+      if (rubric.puces?.length) y = addBullets(slide, rubric.puces, y, { fontSize: 9.2, bottomGap: index === 0 ? 0.9 : 1.1, itemGap: 0.35, measureHeight });
+      if (rubric.suite) y = addParagraph(slide, rubric.suite, y, { fontSize: 9.2, bottomGap: 0.9, measureHeight });
+      if (rubric.suitePuces?.length) y = addBullets(slide, rubric.suitePuces, y, { fontSize: 9.2, bottomGap: 1.1, itemGap: 0.35, measureHeight });
     }
+    if (y > CONTENT_BOTTOM_MM) throw new Error('Le contenu de la page 3.3 dépasse la zone réservée avant le pied de page.');
     return slide;
   }
   if (content.titre.startsWith('3.2 ')) {
@@ -778,7 +791,37 @@ function addCurativeHeader(slide: Slide, y: number): void {
 }
 
 function curativeRowHeight(text: string): number {
-  return Math.max(18, estimateTextHeightMm(text, 56, BODY_FONT_SIZE, 2) + 2);
+  return Math.max(18, estimateTextHeightMm(text, 56, BODY_FONT_SIZE, 2) + 3);
+}
+
+function splitOversizedCurativeText(text: string, maxHeight: number): string[] {
+  let remaining = text.trim();
+  if (!remaining) return [''];
+  const parts: string[] = [];
+  while (curativeRowHeight(remaining) > maxHeight) {
+    let low = 1;
+    let high = remaining.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (curativeRowHeight(remaining.slice(0, middle)) <= maxHeight) low = middle;
+      else high = middle - 1;
+    }
+    const wordBoundary = remaining.lastIndexOf(' ', low);
+    const splitAt = wordBoundary > low / 2 ? wordBoundary : low;
+    parts.push(remaining.slice(0, splitAt).trimEnd());
+    remaining = remaining.slice(splitAt).trimStart();
+  }
+  parts.push(remaining);
+  return parts;
+}
+
+function curativeTotalsGeometry(): { rowHeights: number[]; generalHeight: number; totalHeight: number } {
+  const fixed = PART3_SECTION_6_SYNTHESE_PPPT.tableauRecapitulatifCuratifs;
+  const rowHeights = fixed.totaux.map((row) => Math.max(16,
+    estimateTextHeightMm(`${row.titre}\n${row.calendrierModele}`, 97.6, BODY_FONT_SIZE) + 3,
+  ));
+  const generalHeight = Math.max(16, estimateTextHeightMm(fixed.totalGeneral, 97.6, BODY_FONT_SIZE) + 3);
+  return { rowHeights, generalHeight, totalHeight: rowHeights.reduce((sum, height) => sum + height, 0) + generalHeight + 8 };
 }
 
 function addCurativeRow(
@@ -791,7 +834,7 @@ function addCurativeRow(
   const height = curativeRowHeight(natureTravaux);
   const code = line.niveau === 'Curatif Niveau 1' ? 'C1' : line.niveau === 'Curatif Niveau 2' ? 'C2' : 'C3';
   const rowFill = line.niveau === 'Curatif Niveau 1' ? 'F6A5A8' : line.niveau === 'Curatif Niveau 2' ? 'FBD3A9' : 'C4EDCB';
-  addCell(slide, 15, y, 19, height, showIdentity ? code : '', {
+  addCell(slide, 15, y, 19, height, showIdentity ? code : `${code}\nsuite`, {
     fill: CURATIVE_COLORS[line.niveau],
     color: INK,
     bold: true,
@@ -799,7 +842,7 @@ function addCurativeRow(
     fontFace: BODY_FONT,
     fontSize: BODY_FONT_SIZE,
   });
-  addCell(slide, 34, y, 20, height, showIdentity ? String(line.numero) : '', {
+  addCell(slide, 34, y, 20, height, String(line.numero), {
     fill: rowFill, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
   });
   addCell(slide, 54, y, 60, height, natureTravaux, {
@@ -816,22 +859,24 @@ function addCurativeRow(
 
 function addCurativeTotals(slide: Slide, y: number, summary: RecapitulatifCuratifsPartie3): number {
   const fixed = PART3_SECTION_6_SYNTHESE_PPPT.tableauRecapitulatifCuratifs;
+  const geometry = curativeTotalsGeometry();
   let current = y;
   const levels: readonly NiveauCuratifPartie3[] = ['Curatif Niveau 1', 'Curatif Niveau 2', 'Curatif Niveau 3'];
   levels.forEach((level, index) => {
-    addCell(slide, 34, current, 101, 14, `${fixed.totaux[index].titre}\n${fixed.totaux[index].calendrierModele}`, {
+    const height = geometry.rowHeights[index];
+    addCell(slide, 34, current, 101, height, `${fixed.totaux[index].titre}\n${fixed.totaux[index].calendrierModele}`, {
       fill: 'D9EAF7', align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
     });
-    levels.forEach((columnLevel, columnIndex) => addCell(slide, 135 + columnIndex * 20, current, 20, 14,
+    levels.forEach((columnLevel, columnIndex) => addCell(slide, 135 + columnIndex * 20, current, 20, height,
       columnLevel === level ? formatEur(summary.totauxParNiveau[level]) : '',
       { fill: 'D9EAF7', bold: columnLevel === level, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE }));
-    current += 14;
+    current += height;
   });
-  addCell(slide, 34, current, 101, 12, fixed.totalGeneral, { fill: 'D9EAF7', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE });
-  addCell(slide, 135, current, 60, 12, formatEur(summary.totalTtcEur), {
+  addCell(slide, 34, current, 101, geometry.generalHeight, fixed.totalGeneral, { fill: 'D9EAF7', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE });
+  addCell(slide, 135, current, 60, geometry.generalHeight, formatEur(summary.totalTtcEur), {
     fill: 'D9EAF7', bold: true, align: 'center', fontFace: BODY_FONT, fontSize: BODY_FONT_SIZE,
   });
-  current += 14;
+  current += geometry.generalHeight + 2;
   addBodyText(slide, summary.libelleChiffrage, 15, current, 180, 6, { italic: true, color: MUTED, align: 'right', valign: 'middle' });
   return current + 6;
 }
@@ -852,26 +897,31 @@ function appendCurativeSummarySlides(
   let y = addTitle(slide, title);
   addCurativeHeader(slide, y);
   y += 22;
-  for (const line of summary.lignes) {
-    const height = curativeRowHeight(line.natureTravaux);
-    // Keep every normal intervention in one logical row.  Pagination occurs
-    // before the row rather than creating empty-looking continuation rows.
-    if (y + height > 225) {
-      slide = addPage(pptx, slides, assets, sectionTitle, coproprieteName, firstPageNumber);
-      result.push(slide);
-      y = addTitle(slide, `${title} — suite`);
-      addCurativeHeader(slide, y);
-      y += 22;
-    }
-    addCurativeRow(slide, y, line, line.natureTravaux, true);
-    y += height;
-  }
-  if (y + 62 > 279) {
+  const firstRowY = y;
+  const totalsHeight = curativeTotalsGeometry().totalHeight;
+  let rowsOnPage = 0;
+  const continueTable = (suffix: string) => {
     slide = addPage(pptx, slides, assets, sectionTitle, coproprieteName, firstPageNumber);
     result.push(slide);
-    y = addTitle(slide, `${title} — totaux`);
+    y = addTitle(slide, `${title} — ${suffix}`);
     addCurativeHeader(slide, y);
     y += 22;
+    rowsOnPage = 0;
+  };
+  for (const [lineIndex, line] of summary.lignes.entries()) {
+    const fragments = splitOversizedCurativeText(line.natureTravaux, CONTENT_BOTTOM_MM - firstRowY);
+    for (const [fragmentIndex, fragment] of fragments.entries()) {
+      const height = curativeRowHeight(fragment);
+      const lastFragment = lineIndex === summary.lignes.length - 1 && fragmentIndex === fragments.length - 1;
+      const canGroupWithTotals = lastFragment && height + totalsHeight <= CONTENT_BOTTOM_MM - firstRowY;
+      if (y + height > CONTENT_BOTTOM_MM || (canGroupWithTotals && rowsOnPage > 0 && y + height + totalsHeight > CONTENT_BOTTOM_MM)) {
+        continueTable('suite');
+      }
+      if (y + height > CONTENT_BOTTOM_MM) throw new Error('Une intervention curative dépasse la zone disponible du tableau.');
+      addCurativeRow(slide, y, line, fragment, fragmentIndex === 0);
+      y += height;
+      rowsOnPage += 1;
+    }
   }
   if (summary.lignes.length === 0) {
     for (let row = 0; row < 4; row += 1) {
@@ -881,6 +931,7 @@ function appendCurativeSummarySlides(
       y += 16;
     }
   }
+  if (y + totalsHeight > CONTENT_BOTTOM_MM) continueTable('totaux');
   addCurativeTotals(slide, y, summary);
   return result;
 }

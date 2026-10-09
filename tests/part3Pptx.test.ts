@@ -90,6 +90,22 @@ async function relationshipXml(zip: JSZip): Promise<string> {
   return (await Promise.all(paths.map((path) => zip.file(path)!.async('string')))).join('\n');
 }
 
+function shapesWithGeometry(xml: string): Array<{ xml: string; text: string; topMm: number; bottomMm: number; heightMm: number }> {
+  return [...xml.matchAll(/<p:sp>[\s\S]*?<\/p:sp>/g)].flatMap(([shape]) => {
+    const bounds = shape.match(/<a:off x="\d+" y="(\d+)"\/>\s*<a:ext cx="\d+" cy="(\d+)"\/>/);
+    if (!bounds) return [];
+    const topMm = Number(bounds[1]) / 36000;
+    const heightMm = Number(bounds[2]) / 36000;
+    return [{
+      xml: shape,
+      text: [...shape.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((match) => match[1]).join(' '),
+      topMm,
+      bottomMm: topMm + heightMm,
+      heightMm,
+    }];
+  });
+}
+
 test('Part 3 rejects incomplete documentary data before appending a page', async () => {
   const pptx = new pptxgen();
   assert.throws(() => appendPart3Slides(pptx, createEmptyPart3ReportData(), [], assets()), /Partie 3 incomplète/);
@@ -181,6 +197,55 @@ test('Part 3 keeps one normally sized curative intervention in a single table ro
   assert.ok(curativeSlide, 'The curative intervention must be present in the recap table.');
   assert.equal((curativeSlide.match(/val="F6A5A8"/g) ?? []).length, 6,
     'A single curative intervention must render as one coloured table row, not continuation rows.');
+});
+
+test('Part 3 places two full curative interventions on one page and keeps totals with the last row', async () => {
+  const intervention = `Il convient de procéder à une vérification urgente sur site afin de confirmer la présence et la conformité de l’équipement. ${'Prévoir ensuite sa remise en état et un contrôle de sécurité adapté aux parties communes. '.repeat(3)}`;
+  const pptx = new pptxgen();
+  appendPart3Slides(pptx, completeDocumentation(), [
+    diagnostic('c1', 'Curatif Niveau 1', 100, 300, intervention),
+    diagnostic('c2', 'Curatif Niveau 1', 200, 400, intervention),
+    diagnostic('c3', 'Curatif Niveau 1', 300, 500, intervention),
+  ], assets());
+  const slides = await slideXml(await packageFor(pptx));
+  const curativeSlides = slides.filter((slide) => slide.includes('Tableau 1') && slide.includes('Nature de travaux'));
+  assert.equal(curativeSlides.length, 2);
+  assert.equal((curativeSlides[0].match(/val="F6A5A8"/g) ?? []).length, 12);
+  assert.equal((curativeSlides[1].match(/val="F6A5A8"/g) ?? []).length, 6);
+  assert.doesNotMatch(curativeSlides[0], /Montant total de l’investissement des travaux curatifs/);
+  assert.match(curativeSlides[1], /Montant total de l’investissement des travaux curatifs/);
+  for (const xml of curativeSlides) {
+    const tableShapes = shapesWithGeometry(xml).filter((shape) => shape.xml.includes('val="F6A5A8"') || shape.xml.includes('val="D9EAF7"'));
+    assert.ok(tableShapes.every((shape) => shape.bottomMm <= 276.01), 'Curative rows and totals must clear the footer.');
+  }
+});
+
+test('Part 3 keeps an exceptionally long curative intervention above the footer on continuation pages', async () => {
+  const intervention = `${'Contrôler les éléments de sécurité et prévoir les travaux nécessaires. '.repeat(110)}Fin de l’intervention.`;
+  const pptx = new pptxgen();
+  appendPart3Slides(pptx, completeDocumentation(), [diagnostic('long', 'Curatif Niveau 1', 100, 300, intervention)], assets());
+  const slides = await slideXml(await packageFor(pptx));
+  const curativeSlides = slides.filter((slide) => slide.includes('Tableau 1') && slide.includes('Nature de travaux'));
+  assert.ok(curativeSlides.length > 1);
+  assert.match(curativeSlides.join(' '), /Fin de l’intervention/);
+  for (const xml of curativeSlides) {
+    const tableShapes = shapesWithGeometry(xml).filter((shape) => shape.xml.includes('val="F6A5A8"') || shape.xml.includes('val="D9EAF7"'));
+    assert.ok(tableShapes.every((shape) => shape.bottomMm <= 276.01), 'No curative continuation may overlap the footer.');
+  }
+});
+
+test('Part 3 keeps the complete 3.3 regulatory page inside the body area', async () => {
+  const pptx = new pptxgen();
+  appendPart3Slides(pptx, completeDocumentation(), [], assets());
+  const slides = await slideXml(await packageFor(pptx));
+  const evolution = slides.find((slide) => slide.includes('3.3 Extinction des réseaux 2G et 3G'));
+  assert.ok(evolution);
+  const shapes = shapesWithGeometry(evolution);
+  const context = shapes.find((shape) => shape.text.includes('Les opérateurs de télécommunications'));
+  const lastBullet = shapes.find((shape) => shape.text.includes('coordonner ces adaptations'));
+  assert.ok(context && lastBullet);
+  assert.ok(context.heightMm < 35, 'The Context text box should fit its actual six lines.');
+  assert.ok(lastBullet.bottomMm <= 276.01, 'The last bullet must clear the footer.');
 });
 
 test('Part 3 continues a long optional documentary comment without clipping its table header', async () => {

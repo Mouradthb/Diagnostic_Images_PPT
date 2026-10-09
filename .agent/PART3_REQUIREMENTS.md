@@ -1,6 +1,6 @@
 # Partie 3 — contrat de données, formulaire et générateur
 
-Ce document décrit le périmètre actuellement implémenté pour la Partie 3 du rapport PPPT. Le formulaire et le générateur de diapositives participent à l'assemblage P1→P2→P3 ; le panneau de préparation de l'espace 03 expose l'export final sous contrôle de validité. Sa revue visuelle PowerPoint et son test de déploiement public restent à faire.
+Ce document décrit le périmètre actuellement implémenté pour la Partie 3 du rapport PPPT. Le formulaire et le générateur de diapositives participent à l'assemblage P1→P2→P3 ; le panneau de préparation de l'espace 03 expose l'export final sous contrôle de validité. Le téléchargement public a été testé par l'utilisateur ; toute modification visuelle ultérieure demande une nouvelle vérification du fichier généré.
 
 Les sources de comparaison métier et visuelle sont les fichiers fournis par l'utilisateur `PART3.pptx` et `PPPT PART1+PART2 +PART3.pptx`. Ils ont servi à relever les rubriques et les styles, mais ne sont pas chargés par le code à l'exécution. Les exemples de copropriété, de travaux et de montants qu'ils contiennent ne sont jamais des valeurs par défaut d'un rapport réel.
 
@@ -42,7 +42,7 @@ Le Tableau 1 généré par la Partie 3 ne crée pas un second jeu de diagnostics
 2. Curatif Niveau 2 ;
 3. Curatif Niveau 3.
 
-Chaque ligne reprend l'intervention de Partie 2 comme nature des travaux et affiche un **montant TTC unique, éditable dans le PPTX**. Une intervention qui tient sur une page reste dans une seule ligne logique : le générateur pagine avant cette ligne au lieu de créer une seconde ligne vide pour la suite de son texte. La règle confirmée est :
+Chaque ligne reprend l'intervention de Partie 2 comme nature des travaux et affiche un **montant TTC unique, éditable dans le PPTX**. Les interventions qui tiennent sur une page restent chacune dans une ligne logique et plusieurs lignes peuvent partager la même page. Le bas du tableau est limité à 276 mm, avant le pied de page placé à 284,5 mm. La dernière ligne accompagne les totaux sur la page suivante si ces blocs tiennent ensemble ; une intervention exceptionnellement plus haute qu'une page est poursuivie sur une autre page avec la mention « suite », sans supprimer son texte. La règle confirmée est :
 
 - si les bornes minimum et maximum de l'estimation IA sont positives, finies et cohérentes, afficher leur moyenne arrondie à l'euro ;
 - si l'estimation est absente, nulle, invalide ou inversée, afficher `À confirmer` ; ne jamais convertir cette absence en `0 €` ;
@@ -68,6 +68,7 @@ Les textes réglementaires, les titres, les listes et les structures fixes du mo
 - Les sources des pages 8.2, 8.3 et 8.4 sont des liens PowerPoint externes éditables ; elles pointent respectivement vers les pages Service Public CEE, éco-PTZ et la page economie.gouv.fr indiquées dans le contenu statique.
 - Le texte `www.georisques.gouv.fr` de l’annexe 11.1 est également un lien PowerPoint vers `http://www.georisques.gouv.fr/`.
 - Le renvoi de la page 8.2 est placé à la suite du dernier bloc de contenu, au lieu d’être ancré artificiellement près du pied de page.
+- La page fixe 3.3 mesure localement les zones de texte Calibri 11 sans marges de hauteur cumulées excessives. Son dernier élément reste au-dessus de la limite de contenu de 276 mm ; les autres pages fixes conservent leur mesure existante.
 
 ## État de réalisation et prochaines validations
 
@@ -76,4 +77,4 @@ Les textes réglementaires, les titres, les listes et les structures fixes du mo
 3. **Réalisé — liaison des données dérivées.** Les visuels DPE facultatifs et le tableau curatif dérivé sont connectés au rendu, sans modifier l’export autonome de Partie 2.
 4. **Réalisé — assemblage P1+P2+P3.** L'assembleur consomme `appendPart3Slides`, recalcule le sommaire, les pieds de page, la numérotation et le total à partir des diapositives effectivement produites.
 5. **Réalisé — préparation et export final contrôlé.** L'espace 03 affiche l'état P1/P2/P3, l'aperçu curatif en lecture seule et le bouton d'export. Les fichiers P1/P3 restent exclusivement en mémoire de session ; l'absence de visuels DPE ne bloque pas l'export, mais un visuel fourni invalide le bloque jusqu'à correction.
-6. **Validation de mise en service.** Le flux local et le téléchargement sur le déploiement public ont été testés par l’utilisateur le 8 octobre 2026. Toute correction de mise en page ou de typographie appelle néanmoins une nouvelle comparaison visuelle ciblée dans PowerPoint avant sa validation finale.
+6. **Validation de mise en service.** Le flux local et le téléchargement sur le déploiement public ont été testés par l’utilisateur le 8 octobre 2026. Les corrections de pagination curative et de la page 3.3 ont été rendues et comparées localement dans PowerPoint avec des données fictives ; le prochain fichier téléchargé en production reste à contrôler après déploiement.
