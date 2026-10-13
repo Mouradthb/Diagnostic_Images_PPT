@@ -463,7 +463,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
           <div className="fv-topbar-title">
             <p className="fv-eyebrow">Espace de diagnostic — PPPT</p>
             <h1>Diagnostic Technique Bâtiment</h1>
-            <p className="fv-topbar-subtitle">Analyse photo unitaire · Grille de hiérarchisation des interventions</p>
+            <p className="fv-topbar-subtitle">Analyse photo unitaire · Grille de hiérarchisation des interventions · Génération du rapport</p>
           </div>
 
           <div className="fv-account">
