@@ -14,7 +14,7 @@ Le bouton actuel « Exporter tout en PPTX » reste l'**export autonome des diagn
 | --- | --- |
 | Partie 1 | Saisie et validation des champs/visuels obligatoires ; générateur de pages administratives, sommaire et introduction disponible. Le sommaire peut être réservé puis finalisé après rendu des autres parties. |
 | Partie 2 | Affichage et export autonome fonctionnels, validés par l'utilisateur ; ajout compatible de ses pages à une présentation fournie, sans changement de son export autonome. |
-| Partie 3 | Contrat, validation pure, formulaire contrôlé et générateur A4 réalisés. Les 17 statuts obligatoires, commentaires facultatifs, visuels DPE facultatifs et tableau curatif dérivé sont rendus et intégrés à l'assemblage ; les données restent en mémoire de session. |
+| Partie 3 | Contrat, validation pure, formulaire contrôlé et générateur A4 réalisés. Les 17 statuts obligatoires, commentaires facultatifs, visuels DPE facultatifs et tableau curatif dérivé sont rendus et intégrés à l'assemblage ; les données restent en mémoire de session et peuvent être sauvegardées/restaurées manuellement par JSON local avec celles de P1. |
 | Assemblage | L'assembleur de `src/report/` produit une présentation P1→P2→P3, avec sommaire, pied de page et numérotation communs. Sa sérialisation normalise les déclarations Open XML orphelines avant téléchargement. |
 | Export final utilisateur | Implémenté derrière `finalReportReadiness` et `finalReportExport` : il bloque les données P1/P3 incomplètes, toute photo P2 non résolue ou obsolète et tout DPE fourni invalide. Le contrôle local du fichier téléchargé est réalisé ; revue PowerPoint et test public restent à faire. |
 

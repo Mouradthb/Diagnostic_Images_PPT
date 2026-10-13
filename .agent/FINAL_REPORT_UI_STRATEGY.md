@@ -81,7 +81,7 @@ Sous le formulaire Partie 3, ajouter un panneau de préparation qui présente tr
 
 Chaque bloc incomplet doit contenir une action de navigation vers l'espace concerné. Les états utilisent une hiérarchie claire : prêt, information facultative, bloquant. Le compteur `17/17` ne suffit pas à lui seul : un commentaire invalide ou une image DPE fournie mais invalide doit aussi apparaître comme un blocage.
 
-Une courte information doit rappeler que les données Partie 1 et Partie 3 restent en mémoire de session. Un rechargement peut les effacer. Ne pas ajouter de persistance locale ou distante sans décision distincte sur la confidentialité et la conservation des fichiers.
+Une courte information doit rappeler que les données Partie 1 et Partie 3 restent en mémoire de session. Un rechargement peut les effacer. Une sauvegarde/restauration manuelle par fichier JSON local versionné est désormais disponible ; elle inclut les visuels P1 et les éventuelles captures DPE P3, mais exclut les photos et résultats P2. Aucune persistance automatique ou distante n'est ajoutée.
 
 ## 7. Bouton d'export final
 

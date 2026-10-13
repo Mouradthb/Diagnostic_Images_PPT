@@ -48,6 +48,8 @@ import { validatePart3ReportData } from './part3/reportDataValidation';
 import { buildPart3CurativeSummary } from './part3/curativeSummary';
 import { FinalReportExportPanel } from './components/FinalReportExportPanel';
 import { firstFinalReportBlocker, getFinalReportReadiness } from './report/finalReportReadiness';
+import { ProjectFileActions } from './project/ProjectFileActions';
+import type { ProjectDraft } from './project/projectFile';
 
 interface AppProps {
   uid: string;
@@ -147,6 +149,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
   const [activeWorkspace, setActiveWorkspace] = useState<'part1' | 'diagnostics' | 'part3'>('part1');
   const [part1Data, setPart1Data] = useState(createEmptyPart1ReportData);
   const [part3Data, setPart3Data] = useState(createEmptyPart3ReportData);
+  const [projectRevision, setProjectRevision] = useState(0);
   const [items, setItems] = useState<InspectionImageItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -437,6 +440,14 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
     }
   };
 
+  const restoreProject = ({ part1Data: restoredPart1, part3Data: restoredPart3 }: ProjectDraft) => {
+    setPart1Data(restoredPart1);
+    setPart3Data(restoredPart3);
+    setPart3ValidationRequested(false);
+    setPart3TransientInputValid(true);
+    setProjectRevision((previous) => previous + 1);
+  };
+
   return (
     <div className="fv-app-shell">
       <div className="fv-workspace">
@@ -493,8 +504,16 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
           </button>
         </nav>
 
+        <ProjectFileActions
+          part1Data={part1Data}
+          part3Data={part3Data}
+          disabled={isExporting || isFinalExporting}
+          onRestore={restoreProject}
+        />
+
         {activeWorkspace === 'part1' ? (
           <Part1ReportForm
+            key={`part1-${projectRevision}`}
             data={part1Data}
             validation={part1Validation}
             onChange={setPart1Data}
@@ -502,6 +521,7 @@ export default function App({ uid, email, getIdToken, onSignOut }: AppProps) {
           />
         ) : activeWorkspace === 'part3' ? (
           <Part3ReportForm
+            key={`part3-${projectRevision}`}
             data={part3Data}
             validation={part3Validation}
             onChange={setPart3Data}

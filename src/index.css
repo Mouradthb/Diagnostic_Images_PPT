@@ -1224,6 +1224,69 @@ img {
   font-weight: 700;
 }
 
+.fv-project-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem 1.5rem;
+  padding: 0.85rem clamp(1.25rem, 3.25vw, 4rem);
+  border-bottom: 1px solid var(--fv-line);
+  background: #f8fbf9;
+}
+
+.fv-project-file-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.14rem;
+  color: var(--fv-text);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.fv-project-file-copy strong { color: var(--fv-ink); }
+.fv-project-file-copy span { color: var(--fv-muted); }
+
+.fv-project-file-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fv-project-file-button {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--fv-green);
+  border-radius: 0.3rem;
+  background: var(--fv-green);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.fv-project-file-button--import {
+  background: #fff;
+  color: var(--fv-green-dark);
+}
+
+.fv-project-file-button:hover:not(:disabled) { filter: brightness(0.94); }
+.fv-project-file-button:disabled { cursor: not-allowed; opacity: 0.55; }
+.fv-project-file-button:focus-visible { outline: 2px solid var(--fv-blue); outline-offset: 2px; }
+
+.fv-project-file-message {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--fv-green-dark);
+  font-size: 0.68rem;
+}
+
+.fv-project-file-message.is-error { color: #b3343b; }
+
 .fv-part1-page {
   width: min(100%, 91rem);
   margin: 0 auto;
